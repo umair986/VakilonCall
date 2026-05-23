@@ -1,0 +1,21 @@
+{
+  "name": "vakiloncall",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Token-based on-demand legal assistance marketplace for India",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev --workspace=apps/backend",
+    "mobile:start": "npm run start --workspace=apps/mobile",
+    "admin:dev": "npm run dev --workspace=apps/admin",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

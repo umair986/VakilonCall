@@ -1,0 +1,243 @@
+// Prisma Schema for VakilOnCall
+// Matches database schema from TECH_STACK_AND_DEVELOPMENT_PLAN.md Section 4
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// USERS TABLE
+// ==========================================
+model User {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone         String   @unique @db.VarChar(15)
+  full_name     String?  @db.VarChar(100)
+  role          String   @db.VarChar(10)
+  language_pref String   @default("en") @db.VarChar(10)
+  token_balance Int      @default(0)
+  is_active     Boolean  @default(true)
+  is_banned     Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  // Relations
+  lawyer_profile     LawyerProfile?
+  emergency_contacts EmergencyContact[]
+  token_transactions TokenTransaction[]
+  call_sessions_user CallSession[]      @relation("UserCalls")
+  call_sessions_lawyer CallSession[]    @relation("LawyerCalls")
+  ratings_given      Rating[]           @relation("UserRatings")
+  ratings_received   Rating[]           @relation("LawyerRatings")
+  sos_alerts         SosAlert[]
+  evidence_documents EvidenceDocument[]
+  lawyer_payouts     LawyerPayout[]
+
+  @@map("users")
+}
+
+// ==========================================
+// LAWYER PROFILES TABLE
+// ==========================================
+model LawyerProfile {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id               String   @unique @db.Uuid
+  bar_enrollment_number String   @unique @db.VarChar(50)
+  bar_council_state     String   @db.VarChar(50)
+  enrollment_cert_url   String
+  id_proof_url          String?
+  verification_status   String   @default("pending") @db.VarChar(20)
+  verified_at           DateTime? @db.Timestamptz()
+  verified_by           String?  @db.Uuid
+  is_online             Boolean  @default(false)
+  languages             String[] @default(["en"])
+  scenario_tags         String[] @default([])
+  avg_rating            Decimal  @default(0.00) @db.Decimal(3, 2)
+  total_calls           Int      @default(0)
+  total_earnings        Decimal  @default(0.00) @db.Decimal(10, 2)
+  wallet_balance        Decimal  @default(0.00) @db.Decimal(10, 2)
+  created_at            DateTime @default(now()) @db.Timestamptz()
+  updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("lawyer_profiles")
+}
+
+// ==========================================
+// EMERGENCY CONTACTS TABLE
+// ==========================================
+model EmergencyContact {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  name       String   @db.VarChar(100)
+  phone      String   @db.VarChar(15)
+  relation   String?  @db.VarChar(50)
+  priority   Int      @default(1)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, priority])
+  @@map("emergency_contacts")
+}
+
+// ==========================================
+// TOKEN PACKS TABLE
+// ==========================================
+model TokenPack {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String   @db.VarChar(50)
+  tokens     Int
+  price_inr  Decimal  @db.Decimal(8, 2)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  token_transactions TokenTransaction[]
+
+  @@map("token_packs")
+}
+
+// ==========================================
+// TOKEN TRANSACTIONS TABLE
+// ==========================================
+model TokenTransaction {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String   @db.Uuid
+  type                String   @db.VarChar(20)
+  tokens              Int
+  razorpay_order_id   String?  @db.VarChar(100)
+  razorpay_payment_id String?  @db.VarChar(100)
+  token_pack_id       String?  @db.Uuid
+  call_session_id     String?  @db.Uuid
+  metadata            Json     @default("{}")
+  created_at          DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token_pack TokenPack? @relation(fields: [token_pack_id], references: [id])
+
+  @@map("token_transactions")
+}
+
+// ==========================================
+// CALL SESSIONS TABLE
+// ==========================================
+model CallSession {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String    @db.Uuid
+  lawyer_id              String?   @db.Uuid
+  scenario               String    @db.VarChar(30)
+  status                 String    @default("matching") @db.VarChar(20)
+  exotel_call_sid        String?   @db.VarChar(100)
+  recording_url          String?
+  recording_duration_sec Int?
+  tokens_charged         Int       @default(0)
+  lawyer_payout          Decimal   @default(0.00) @db.Decimal(8, 2)
+  platform_revenue       Decimal   @default(0.00) @db.Decimal(8, 2)
+  user_latitude          Decimal?  @db.Decimal(10, 7)
+  user_longitude         Decimal?  @db.Decimal(10, 7)
+  sos_fired              Boolean   @default(false)
+  started_at             DateTime? @db.Timestamptz()
+  connected_at           DateTime? @db.Timestamptz()
+  ended_at               DateTime? @db.Timestamptz()
+  end_reason             String?   @db.VarChar(20)
+  created_at             DateTime  @default(now()) @db.Timestamptz()
+
+  // Relations
+  user      User       @relation("UserCalls", fields: [user_id], references: [id])
+  lawyer    User?      @relation("LawyerCalls", fields: [lawyer_id], references: [id])
+  rating    Rating?
+  sos_alert SosAlert?
+
+  @@map("call_sessions")
+}
+
+// ==========================================
+// RATINGS TABLE
+// ==========================================
+model Rating {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  call_session_id String   @unique @db.Uuid
+  user_id         String   @db.Uuid
+  lawyer_id       String   @db.Uuid
+  stars           Int
+  comment         String?
+  is_reported     Boolean  @default(false)
+  report_reason   String?
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  call_session CallSession @relation(fields: [call_session_id], references: [id])
+  user         User        @relation("UserRatings", fields: [user_id], references: [id])
+  lawyer       User        @relation("LawyerRatings", fields: [lawyer_id], references: [id])
+
+  @@map("ratings")
+}
+
+// ==========================================
+// SOS ALERTS TABLE
+// ==========================================
+model SosAlert {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String   @db.Uuid
+  call_session_id   String?  @unique @db.Uuid
+  latitude          Decimal  @db.Decimal(10, 7)
+  longitude         Decimal  @db.Decimal(10, 7)
+  contacts_notified Json     @default("[]")
+  officer_name      String?  @db.VarChar(100)
+  officer_badge     String?  @db.VarChar(50)
+  fired_at          DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  user         User         @relation(fields: [user_id], references: [id])
+  call_session CallSession? @relation(fields: [call_session_id], references: [id])
+
+  @@map("sos_alerts")
+}
+
+// ==========================================
+// EVIDENCE LOCKER TABLE
+// ==========================================
+model EvidenceDocument {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String   @db.Uuid
+  doc_type     String   @db.VarChar(30)
+  file_url     String
+  file_name    String?  @db.VarChar(200)
+  is_encrypted Boolean  @default(true)
+  metadata     Json     @default("{}")
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("evidence_documents")
+}
+
+// ==========================================
+// LAWYER PAYOUTS TABLE
+// ==========================================
+model LawyerPayout {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lawyer_id          String    @db.Uuid
+  amount             Decimal   @db.Decimal(10, 2)
+  status             String    @default("pending") @db.VarChar(20)
+  razorpay_payout_id String?   @db.VarChar(100)
+  bank_account       Json?
+  upi_id             String?   @db.VarChar(100)
+  requested_at       DateTime  @default(now()) @db.Timestamptz()
+  processed_at       DateTime? @db.Timestamptz()
+
+  // Relations
+  lawyer User @relation(fields: [lawyer_id], references: [id])
+
+  @@map("lawyer_payouts")
+}
