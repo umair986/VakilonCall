@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { createTokenOrderSchema, verifyPaymentSchema } from '@vakiloncall/shared';
-import { CALL_ECONOMICS } from '@vakiloncall/shared';
 import { validateBody } from '../middleware/validate';
 import { authMiddleware, requireRegistered } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
@@ -28,7 +27,7 @@ tokenRouter.get('/packs', async (_req: Request, res: Response): Promise<void> =>
 
     sendSuccess(
       res,
-      packs.map((p) => ({
+      packs.map((p: typeof packs[number]) => ({
         id: p.id,
         name: p.name,
         tokens: p.tokens,
@@ -125,7 +124,7 @@ tokenRouter.post(
       const tokensToAdd = parseInt(tokensStr, 10);
 
       // Atomic: credit tokens + record transaction in a single DB transaction
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: typeof prisma) => {
         const updatedUser = await tx.user.update({
           where: { id: req.user!.id },
           data: { token_balance: { increment: tokensToAdd } },

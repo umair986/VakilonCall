@@ -125,7 +125,7 @@ userRouter.get(
 
       sendSuccess(
         res,
-        calls.map((c) => ({
+        calls.map((c: typeof calls[number]) => ({
           id: c.id,
           scenario: c.scenario,
           status: c.status,
