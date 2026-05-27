@@ -124,7 +124,7 @@ tokenRouter.post(
       const tokensToAdd = parseInt(tokensStr, 10);
 
       // Atomic: credit tokens + record transaction in a single DB transaction
-      const result = await prisma.$transaction(async (tx: typeof prisma) => {
+      const result = await prisma.$transaction(async (tx) => {
         const updatedUser = await tx.user.update({
           where: { id: req.user!.id },
           data: { token_balance: { increment: tokensToAdd } },

@@ -39,7 +39,7 @@ export default function HomeScreen(): React.JSX.Element {
             icon="account-circle"
             iconColor={brandColors.textSecondary}
             size={32}
-            onPress={() => { /* Profile navigation - Sprint 2 */ }}
+            onPress={() => router.push('/profile')}
           />
         </View>
 
@@ -133,7 +133,7 @@ export default function HomeScreen(): React.JSX.Element {
           </View>
           <Button
             mode="text"
-            onPress={() => { /* SOS setup - Sprint 5 */ }}
+            onPress={() => router.push('/profile')}
             textColor={brandColors.accent}
             compact
           >
