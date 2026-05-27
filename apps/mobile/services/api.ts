@@ -112,4 +112,45 @@ export const api = {
     request<{ is_online: boolean }>(
       'POST', API_PATHS.LAWYER.TOGGLE_ONLINE, { is_online }
     ),
+
+  // Calls
+  requestCall: (scenario: string, latitude?: number, longitude?: number) =>
+    request<{
+      call_session_id: string;
+      status: string;
+      scenario: string;
+      message: string;
+    }>('POST', API_PATHS.CALLS.REQUEST, { scenario, latitude, longitude }),
+
+  cancelCall: (callId: string) =>
+    request<{ status: string }>(
+      'POST', API_PATHS.CALLS.CANCEL(callId)
+    ),
+
+  getCallStatus: (callId: string) =>
+    request<{
+      id: string;
+      status: string;
+      scenario: string;
+      lawyer_name: string | null;
+      tokens_charged: number;
+    }>('GET', API_PATHS.CALLS.STATUS(callId)),
+
+  endCall: (callId: string) =>
+    request<{
+      status: string;
+      duration_sec: number;
+      tokens_charged: number;
+      refunded: boolean;
+    }>('POST', API_PATHS.CALLS.END(callId)),
+
+  rateCall: (callId: string, stars: number, comment?: string) =>
+    request<{ message: string; stars: number }>(
+      'POST', API_PATHS.CALLS.RATE(callId), { stars, comment }
+    ),
+
+  reportCall: (callId: string, reason: string) =>
+    request<{ message: string }>(
+      'POST', API_PATHS.CALLS.REPORT(callId), { reason }
+    ),
 };

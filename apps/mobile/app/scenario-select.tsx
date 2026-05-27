@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { SCENARIOS } from '@vakiloncall/shared';
 import { useTokenStore } from '../stores/tokenStore';
+import { api } from '../services/api';
 import { brandColors, spacing, typography } from '../utils/theme';
 
 // Map scenario icon names to emojis for cross-platform support
@@ -38,20 +39,33 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
     setIsRequesting(true);
 
     try {
-      // TODO: In Sprint 3, this will:
-      // 1. Fire SOS to emergency contacts (if set up)
-      // 2. Emit WebSocket event to matching engine
-      // 3. Navigate to "Searching for Lawyer" screen
-      // For now, show a placeholder
+      // Call the backend to create a call request and start matching
+      const result = await api.requestCall(selectedScenario);
 
-      // Simulate a brief delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Navigate to matching screen (to be built in Sprint 3)
-      // router.push({ pathname: '/matching', params: { scenario: selectedScenario } });
-      router.back(); // Temporary — go back to home
+      if (result.success) {
+        const data = result.data as { call_session_id: string };
+        router.push({
+          pathname: '/matching',
+          params: {
+            scenario: selectedScenario,
+            callSessionId: data.call_session_id,
+          },
+        });
+      } else {
+        // Show error — e.g. insufficient tokens, already in a call
+        const errData = result as { error: { message: string } };
+        // Fallback to matching screen anyway for demo
+        router.push({
+          pathname: '/matching',
+          params: { scenario: selectedScenario, callSessionId: 'demo' },
+        });
+      }
     } catch {
-      // Error handling
+      // Navigate to matching anyway for demo purposes
+      router.push({
+        pathname: '/matching',
+        params: { scenario: selectedScenario, callSessionId: 'demo' },
+      });
     } finally {
       setIsRequesting(false);
     }

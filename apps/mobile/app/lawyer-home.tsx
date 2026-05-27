@@ -49,7 +49,7 @@ export default function LawyerHomeScreen(): React.JSX.Element {
             icon="account-circle"
             iconColor={brandColors.textSecondary}
             size={32}
-            onPress={() => { /* Profile - Sprint 3 */ }}
+            onPress={() => router.push('/profile')}
           />
         </View>
 
@@ -151,7 +151,7 @@ export default function LawyerHomeScreen(): React.JSX.Element {
         {/* Request Payout */}
         <Button
           mode="outlined"
-          onPress={() => { /* Payout flow - Sprint 3 */ }}
+          onPress={() => router.push('/earnings')}
           textColor={brandColors.secondary}
           style={styles.payoutButton}
           icon="bank-transfer"
