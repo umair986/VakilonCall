@@ -11,6 +11,9 @@ import { userRouter } from './routes/user';
 import { lawyerRouter } from './routes/lawyer';
 import { tokenRouter } from './routes/tokens';
 import { callRouter } from './routes/calls';
+import { sosRouter } from './routes/sos';
+import { evidenceRouter } from './routes/evidence';
+import { adminRouter } from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 import { initSocketHandlers } from './socket/handler';
 import { logger } from './utils/logger';
@@ -76,6 +79,9 @@ app.use(`${API_BASE_PATH}/user`, userRouter);
 app.use(`${API_BASE_PATH}/lawyer`, lawyerRouter);
 app.use(`${API_BASE_PATH}/tokens`, tokenRouter);
 app.use(`${API_BASE_PATH}/calls`, callRouter);
+app.use(`${API_BASE_PATH}/sos`, sosRouter);
+app.use(`${API_BASE_PATH}/evidence`, evidenceRouter);
+app.use(`${API_BASE_PATH}/admin`, adminRouter);
 
 // =============================================
 // 404 HANDLER

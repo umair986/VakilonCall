@@ -133,7 +133,7 @@ export default function HomeScreen(): React.JSX.Element {
           </View>
           <Button
             mode="text"
-            onPress={() => router.push('/profile')}
+            onPress={() => router.push('/sos-contacts')}
             textColor={brandColors.accent}
             compact
           >
