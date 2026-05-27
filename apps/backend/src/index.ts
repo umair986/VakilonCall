@@ -10,7 +10,9 @@ import { authRouter } from './routes/auth';
 import { userRouter } from './routes/user';
 import { lawyerRouter } from './routes/lawyer';
 import { tokenRouter } from './routes/tokens';
+import { callRouter } from './routes/calls';
 import { errorHandler } from './middleware/errorHandler';
+import { initSocketHandlers } from './socket/handler';
 import { logger } from './utils/logger';
 
 const app = express();
@@ -73,6 +75,7 @@ app.use(`${API_BASE_PATH}/auth`, authRouter);
 app.use(`${API_BASE_PATH}/user`, userRouter);
 app.use(`${API_BASE_PATH}/lawyer`, lawyerRouter);
 app.use(`${API_BASE_PATH}/tokens`, tokenRouter);
+app.use(`${API_BASE_PATH}/calls`, callRouter);
 
 // =============================================
 // 404 HANDLER
@@ -90,18 +93,9 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 // =============================================
-// SOCKET.IO CONNECTION HANDLER
+// SOCKET.IO — Matching Engine & Real-time Events
 // =============================================
-io.on('connection', (socket) => {
-  logger.info({ socketId: socket.id }, 'Client connected');
-
-  socket.on('disconnect', () => {
-    logger.info({ socketId: socket.id }, 'Client disconnected');
-  });
-
-  // Lawyer online/offline events will be handled in Sprint 3
-  // Placeholder structure for WebSocket events
-});
+initSocketHandlers(io);
 
 // =============================================
 // START SERVER
