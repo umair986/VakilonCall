@@ -22,7 +22,7 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
 
   const pickDocument = useCallback(async (type: 'cert' | 'id'): Promise<void> => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
       quality: 0.8,
     });

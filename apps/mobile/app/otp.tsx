@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { api } from '../services/api';
 import { brandColors, spacing, typography } from '../utils/theme';
+import type { LanguageCode } from '@vakiloncall/shared';
 
 const OTP_LENGTH = 6;
 
@@ -94,7 +95,7 @@ export default function OtpScreen(): React.JSX.Element {
             phone: userData.phone as string,
             full_name: (userData.full_name as string) ?? null,
             role: userData.role as 'user' | 'lawyer',
-            language_pref: (userData.language_pref as string) ?? 'en',
+            language_pref: (userData.language_pref as LanguageCode) ?? 'en',
             token_balance: (userData.token_balance as number) ?? 0,
             is_active: true,
             is_banned: false,
