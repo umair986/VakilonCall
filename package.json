@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "backend:dev": "npm run dev --workspace=apps/backend",
+    "backend:seed": "npm run prisma:seed --workspace=apps/backend",
     "mobile:start": "npm run start --workspace=apps/mobile",
     "admin:dev": "npm run dev --workspace=apps/admin",
     "lint": "npm run lint --workspaces --if-present",

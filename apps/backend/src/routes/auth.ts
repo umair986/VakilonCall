@@ -6,14 +6,49 @@ import { sendSuccess, sendError } from '../utils/response';
 import { supabaseAdmin } from '../utils/supabase';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
+import {
+  isDevAuthBypassEnabled,
+  isDevAuthPhone,
+  isDevAuthOtp,
+  createDevAccessToken,
+} from '../utils/devAuth';
 import type { Request, Response } from 'express';
 
 export const authRouter = Router();
 
+const validateSendOtp = (req: Request, res: Response, next: () => void): void => {
+  if (isDevAuthBypassEnabled() && isDevAuthPhone((req.body as { phone?: string })?.phone ?? '')) {
+    next();
+    return;
+  }
+
+  validateBody(sendOtpSchema)(req, res, next);
+};
+
+const validateVerifyOtp = (req: Request, res: Response, next: () => void): void => {
+  const body = req.body as { phone?: string; otp?: string };
+  if (isDevAuthBypassEnabled() && isDevAuthPhone(body?.phone ?? '') && typeof body?.otp === 'string') {
+    next();
+    return;
+  }
+
+  validateBody(verifyOtpSchema)(req, res, next);
+};
+
 // POST /api/v1/auth/send-otp
-authRouter.post('/send-otp', validateBody(sendOtpSchema), async (req: Request, res: Response): Promise<void> => {
+authRouter.post('/send-otp', validateSendOtp, async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone } = req.body as { phone: string };
+
+    if (isDevAuthBypassEnabled()) {
+      if (!isDevAuthPhone(phone)) {
+        sendError(res, 400, 'VALIDATION_ERROR', 'Use the configured dev phone number');
+        return;
+      }
+
+      sendSuccess(res, { message: 'OTP sent successfully', phone });
+      return;
+    }
 
     const { error } = await supabaseAdmin.auth.signInWithOtp({ phone });
 
@@ -31,9 +66,25 @@ authRouter.post('/send-otp', validateBody(sendOtpSchema), async (req: Request, r
 });
 
 // POST /api/v1/auth/verify-otp
-authRouter.post('/verify-otp', validateBody(verifyOtpSchema), async (req: Request, res: Response): Promise<void> => {
+authRouter.post('/verify-otp', validateVerifyOtp, async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone, otp } = req.body as { phone: string; otp: string };
+
+    if (isDevAuthBypassEnabled()) {
+      if (!isDevAuthPhone(phone) || !isDevAuthOtp(otp)) {
+        sendError(res, 400, 'AUTH_INVALID_OTP', 'Invalid or expired OTP');
+        return;
+      }
+
+      const token = createDevAccessToken(phone);
+      sendSuccess(res, {
+        access_token: token,
+        refresh_token: token,
+        user: null,
+        is_new_user: true,
+      });
+      return;
+    }
 
     const { data, error } = await supabaseAdmin.auth.verifyOtp({
       phone,
@@ -90,7 +141,23 @@ authRouter.post('/set-role', authMiddleware, validateBody(setRoleSchema), async 
     // Check if user already exists
     const existing = await prisma.user.findUnique({ where: { phone } });
     if (existing) {
-      sendError(res, 409, 'VALIDATION_ERROR', 'User already registered');
+      if (!isDevAuthBypassEnabled()) {
+        sendError(res, 409, 'VALIDATION_ERROR', 'User already registered');
+        return;
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: existing.id },
+        data: { role },
+      });
+
+      sendSuccess(res, {
+        id: updated.id,
+        phone: updated.phone,
+        role: updated.role,
+        language_pref: updated.language_pref,
+        token_balance: updated.token_balance,
+      }, 200);
       return;
     }
 
