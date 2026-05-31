@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../utils/supabase';
 import { prisma } from '../utils/prisma';
 import { sendError } from '../utils/response';
 import { logger } from '../utils/logger';
+import { isDevAuthBypassEnabled, isDevAuthPhone, parseDevAccessToken } from '../utils/devAuth';
 import type { IUser } from '@vakiloncall/shared';
 
 // Extend Express Request to include authenticated user
@@ -28,6 +29,64 @@ export async function authMiddleware(
     }
 
     const token = authHeader.substring(7);
+
+    if (isDevAuthBypassEnabled()) {
+      const devPhone = parseDevAccessToken(token);
+
+      if (devPhone) {
+        if (!isDevAuthPhone(devPhone)) {
+          sendError(res, 401, 'AUTH_UNAUTHORIZED', 'Invalid or expired token');
+          return;
+        }
+
+        const dbUser = await prisma.user.findUnique({
+          where: { phone: devPhone },
+        });
+
+        if (!dbUser) {
+          req.user = {
+            id: '',
+            phone: devPhone,
+            full_name: null,
+            role: 'user',
+            language_pref: 'en',
+            token_balance: 0,
+            is_active: true,
+            is_banned: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          next();
+          return;
+        }
+
+        if (dbUser.is_banned) {
+          sendError(res, 403, 'USER_BANNED', 'Your account has been suspended');
+          return;
+        }
+
+        if (!dbUser.is_active) {
+          sendError(res, 403, 'USER_BANNED', 'Your account is deactivated');
+          return;
+        }
+
+        req.user = {
+          id: dbUser.id,
+          phone: dbUser.phone,
+          full_name: dbUser.full_name,
+          role: dbUser.role as IUser['role'],
+          language_pref: dbUser.language_pref as IUser['language_pref'],
+          token_balance: dbUser.token_balance,
+          is_active: dbUser.is_active,
+          is_banned: dbUser.is_banned,
+          created_at: dbUser.created_at.toISOString(),
+          updated_at: dbUser.updated_at.toISOString(),
+        };
+
+        next();
+        return;
+      }
+    }
 
     // Verify the JWT with Supabase
     const { data: { user: supabaseUser }, error } = await supabaseAdmin.auth.getUser(token);

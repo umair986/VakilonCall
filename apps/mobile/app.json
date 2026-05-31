@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#0A1628"
       },
       "package": "com.vakiloncall.app",
@@ -44,7 +44,7 @@
       },
       "SUPABASE_URL": "",
       "SUPABASE_ANON_KEY": "",
-      "API_BASE_URL": "http://localhost:3000"
+      "API_BASE_URL": "http://192.168.29.220:3000"
     }
   }
 }
