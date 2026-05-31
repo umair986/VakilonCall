@@ -1,21 +1,23 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import {
-  Text,
-  Surface,
-  IconButton,
-  Button,
-  TextInput,
-  Divider,
-} from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { Button, Divider, Text, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { api } from '../services/api';
 import { disconnectSocket } from '../services/socket';
 import { LANGUAGES } from '@vakiloncall/shared';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import {
+  ActionRow,
+  DangerAction,
+  LegalCard,
+  MetricTile,
+  PrimaryAction,
+  Screen,
+  ScreenHeader,
+  StatusPill,
+} from '../components/ui';
 
 export default function ProfileScreen(): React.JSX.Element {
   const router = useRouter();
@@ -23,6 +25,25 @@ export default function ProfileScreen(): React.JSX.Element {
   const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
   const balance = useTokenStore((s) => s.balance);
+  const setBalance = useTokenStore((s) => s.setBalance);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBalance = async () => {
+      try {
+        const res = await api.getTokenBalance();
+        if (res.success && res.data && typeof res.data.token_balance === 'number' && isMounted) {
+          setBalance(res.data.token_balance);
+        }
+      } catch (err) {
+        console.error('Failed to fetch token balance in profile:', err);
+      }
+    };
+    fetchBalance();
+    return () => {
+      isMounted = false;
+    };
+  }, [setBalance]);
 
   const [fullName, setFullName] = useState(user?.full_name ?? '');
   const [isSaving, setIsSaving] = useState(false);
@@ -41,88 +62,52 @@ export default function ProfileScreen(): React.JSX.Element {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 2000);
       }
-    } catch {
-      // Silently fail for now
     } finally {
       setIsSaving(false);
     }
   }, [fullName, user, setUser]);
 
   const handleLogout = useCallback((): void => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            disconnectSocket();
-            logout();
-            router.replace('/');
-          },
+    Alert.alert('Logout', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          disconnectSocket();
+          logout();
+          router.replace('/');
         },
-      ]
-    );
+      },
+    ]);
   }, [logout, router]);
 
+  const initial = (user?.full_name ?? user?.phone ?? '?').charAt(0).toUpperCase();
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={brandColors.text}
-          size={24}
-          onPress={() => router.back()}
-        />
-        <Text style={styles.headerTitle}>Profile</Text>
-        <View style={{ width: 48 }} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Avatar & Phone */}
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarText}>
-              {(user?.full_name ?? user?.phone ?? '?').charAt(0).toUpperCase()}
-            </Text>
+    <>
+      <ScreenHeader title="Profile" subtitle="Account and access" back />
+      <Screen scroll>
+        <View style={styles.identity}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initial}</Text>
           </View>
+          <Text style={styles.name}>{user?.full_name ?? 'Unnamed account'}</Text>
           <Text style={styles.phone}>{user?.phone ?? ''}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>
-              {user?.role === 'lawyer' ? '⚖️ Lawyer' : '👤 User'}
-            </Text>
-          </View>
+          <StatusPill
+            label={user?.role === 'lawyer' ? 'Lawyer' : 'Citizen'}
+            icon={user?.role === 'lawyer' ? 'account-tie-outline' : 'account-outline'}
+          />
         </View>
 
-        {/* Quick Stats */}
         <View style={styles.statsRow}>
-          <Surface style={styles.statCard} elevation={1}>
-            <Text style={styles.statValue}>{balance}</Text>
-            <Text style={styles.statLabel}>Tokens</Text>
-          </Surface>
-          <Surface style={styles.statCard} elevation={1}>
-            <Text style={styles.statValue}>
-              {user?.role === 'lawyer' ? '—' : '0'}
-            </Text>
-            <Text style={styles.statLabel}>Calls</Text>
-          </Surface>
-          <Surface style={styles.statCard} elevation={1}>
-            <Text style={styles.statValue}>
-              {user?.language_pref?.toUpperCase() ?? 'EN'}
-            </Text>
-            <Text style={styles.statLabel}>Language</Text>
-          </Surface>
+          <MetricTile label="Tokens" value={balance} />
+          <MetricTile label="Calls" value={user?.role === 'lawyer' ? '-' : '0'} />
+          <MetricTile label="Language" value={user?.language_pref?.toUpperCase() ?? 'EN'} />
         </View>
 
-        {/* Edit Name */}
-        <Surface style={styles.sectionCard} elevation={1}>
-          <Text style={styles.sectionTitle}>Display Name</Text>
+        <LegalCard style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Display name</Text>
           <View style={styles.nameRow}>
             <TextInput
               style={styles.nameInput}
@@ -132,191 +117,118 @@ export default function ProfileScreen(): React.JSX.Element {
               onChangeText={setFullName}
               maxLength={100}
               outlineColor={brandColors.border}
-              activeOutlineColor={brandColors.primary}
+              activeOutlineColor={brandColors.text}
               textColor={brandColors.text}
               placeholderTextColor={brandColors.textMuted}
             />
-            <Button
-              mode="contained"
+            <PrimaryAction
               onPress={handleSaveName}
               loading={isSaving}
               disabled={isSaving || !fullName.trim() || fullName.trim() === user?.full_name}
               compact
               style={styles.saveButton}
             >
-              {saveSuccess ? '✓' : 'Save'}
-            </Button>
+              {saveSuccess ? 'Saved' : 'Save'}
+            </PrimaryAction>
           </View>
-        </Surface>
+        </LegalCard>
 
-        {/* Account Info */}
-        <Surface style={styles.sectionCard} elevation={1}>
+        <LegalCard style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Account</Text>
+          <InfoRow label="Phone" value={user?.phone ?? '-'} />
+          <Divider style={styles.divider} />
+          <InfoRow label="Role" value={user?.role === 'lawyer' ? 'Lawyer' : 'Citizen'} />
+          <Divider style={styles.divider} />
+          <InfoRow
+            label="Language"
+            value={LANGUAGES.find((l) => l.code === user?.language_pref)?.label ?? 'English'}
+          />
+          <Divider style={styles.divider} />
+          <InfoRow
+            label="Member since"
+            value={
+              user?.created_at
+                ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+                : '-'
+            }
+          />
+        </LegalCard>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Phone</Text>
-            <Text style={styles.infoValue}>{user?.phone ?? '—'}</Text>
-          </View>
-          <Divider style={styles.infoDivider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Role</Text>
-            <Text style={styles.infoValue}>
-              {user?.role === 'lawyer' ? 'Lawyer' : 'User'}
-            </Text>
-          </View>
-          <Divider style={styles.infoDivider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Language</Text>
-            <Text style={styles.infoValue}>
-              {LANGUAGES.find((l) => l.code === user?.language_pref)?.label ?? 'English'}
-            </Text>
-          </View>
-          <Divider style={styles.infoDivider} />
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Member Since</Text>
-            <Text style={styles.infoValue}>
-              {user?.created_at
-                ? new Date(user.created_at).toLocaleDateString('en-IN', {
-                    month: 'short',
-                    year: 'numeric',
-                  })
-                : '—'}
-            </Text>
-          </View>
-        </Surface>
-
-        {/* Quick Links */}
-        <Surface style={styles.sectionCard} elevation={1}>
-          <Button
-            mode="text"
-            icon="shield-check"
+        <LegalCard style={styles.linksCard}>
+          <ActionRow
+            icon="shield-check-outline"
+            title="Know Your Rights"
+            subtitle="Open free rights reference"
             onPress={() => router.push('/rights')}
-            textColor={brandColors.secondary}
-            contentStyle={styles.linkContent}
-            style={styles.linkButton}
-          >
-            Know Your Rights
-          </Button>
-          <Divider style={styles.infoDivider} />
-          <Button
-            mode="text"
+          />
+          <View style={styles.divider} />
+          <ActionRow
             icon="history"
+            title="Transaction History"
+            subtitle="Review token movement"
             onPress={() => router.push('/transactions')}
-            textColor={brandColors.textSecondary}
-            contentStyle={styles.linkContent}
-            style={styles.linkButton}
-          >
-            Transaction History
-          </Button>
-        </Surface>
+          />
+        </LegalCard>
 
-        {/* Logout */}
-        <Button
-          mode="outlined"
-          onPress={handleLogout}
-          textColor={brandColors.error}
-          style={styles.logoutButton}
-          icon="logout"
-        >
-          Logout
-        </Button>
+        <DangerAction onPress={handleLogout} icon="logout">Logout</DangerAction>
 
-        {/* Version */}
-        <Text style={styles.version}>VakilOnCall v0.1.0</Text>
-      </ScrollView>
-    </SafeAreaView>
+        <Text style={styles.version}>Vakil On Call v0.1.0</Text>
+      </Screen>
+    </>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }): React.JSX.Element {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: brandColors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  avatarSection: {
+  identity: {
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: brandColors.primaryDark,
-    justifyContent: 'center',
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: brandColors.borderLight,
+    backgroundColor: brandColors.surface,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '700',
-    color: brandColors.white,
+    color: brandColors.text,
+  },
+  name: {
+    ...typography.h3,
+    color: brandColors.text,
   },
   phone: {
-    ...typography.body,
-    color: brandColors.textSecondary,
+    ...typography.bodySmall,
+    color: brandColors.textMuted,
+    marginTop: 2,
     marginBottom: spacing.sm,
-  },
-  roleBadge: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 20,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  roleText: {
-    ...typography.caption,
-    color: brandColors.primary,
-    fontWeight: '600',
   },
   statsRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  statCard: {
-    flex: 1,
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  statValue: {
-    ...typography.h2,
-    color: brandColors.primary,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: brandColors.textMuted,
-    marginTop: 2,
-  },
   sectionCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 14,
-    padding: spacing.lg,
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    ...typography.caption,
+    ...typography.section,
     color: brandColors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
     marginBottom: spacing.md,
   },
   nameRow: {
@@ -330,37 +242,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   saveButton: {
-    borderRadius: 10,
+    minWidth: 82,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.sm,
+    gap: spacing.md,
   },
   infoLabel: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: brandColors.textSecondary,
   },
   infoValue: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: brandColors.text,
-    fontWeight: '500',
+    fontWeight: '700',
+    textAlign: 'right',
+    flex: 1,
   },
-  infoDivider: {
+  divider: {
     backgroundColor: brandColors.border,
-    opacity: 0.2,
   },
-  linkContent: {
-    justifyContent: 'flex-start',
-  },
-  linkButton: {
-    paddingVertical: spacing.xs,
-  },
-  logoutButton: {
-    borderRadius: 12,
-    borderColor: brandColors.error,
-    marginTop: spacing.md,
+  linksCard: {
+    marginBottom: spacing.lg,
+    paddingVertical: spacing.sm,
   },
   version: {
     ...typography.caption,

@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Surface, Switch, IconButton } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
+import { IconButton, Switch, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import { LegalCard, MetricTile, PrimaryAction, Screen, StatusPill } from '../components/ui';
 
 export default function LawyerHomeScreen(): React.JSX.Element {
   const router = useRouter();
@@ -22,8 +22,6 @@ export default function LawyerHomeScreen(): React.JSX.Element {
       if (result.success) {
         setIsOnline(result.data.is_online);
       }
-    } catch {
-      // Revert on failure
     } finally {
       setIsToggling(false);
     }
@@ -32,282 +30,162 @@ export default function LawyerHomeScreen(): React.JSX.Element {
   const isVerified = verificationStatus === 'verified';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>
-              Hello, Advocate {user?.full_name ?? ''} ⚖️
+    <Screen scroll>
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.kicker}>Lawyer dashboard</Text>
+          <Text style={styles.title}>Adv. {user?.full_name ?? 'Profile'}</Text>
+        </View>
+        <IconButton
+          icon="account-circle-outline"
+          iconColor={brandColors.textSecondary}
+          size={28}
+          onPress={() => router.push('/profile')}
+          style={styles.profileButton}
+        />
+      </View>
+
+      {!isVerified ? (
+        <LegalCard variant="notice" style={styles.verificationCard}>
+          <StatusPill label="Verification pending" tone="warning" icon="clock-outline" />
+          <Text style={styles.cardTitle}>Bar Council verification</Text>
+          <Text style={styles.cardText}>
+            Your enrollment is under review. Approval is required before accepting calls.
+          </Text>
+        </LegalCard>
+      ) : null}
+
+      <LegalCard style={styles.onlineCard}>
+        <View style={styles.onlineRow}>
+          <View style={styles.onlineCopy}>
+            <StatusPill
+              label={isOnline ? 'Online' : 'Offline'}
+              tone={isOnline ? 'success' : 'neutral'}
+              icon={isOnline ? 'broadcast' : 'minus-circle-outline'}
+            />
+            <Text style={styles.cardTitle}>{isOnline ? 'Accepting requests' : 'Not receiving requests'}</Text>
+            <Text style={styles.cardText}>
+              {isVerified ? 'Toggle availability when you are ready for calls.' : 'Verification must be approved first.'}
             </Text>
-            <Text style={styles.greetingSub}>Lawyer Dashboard</Text>
           </View>
-          <IconButton
-            icon="account-circle"
-            iconColor={brandColors.textSecondary}
-            size={32}
-            onPress={() => router.push('/profile')}
+          <Switch
+            value={isOnline}
+            onValueChange={handleToggleOnline}
+            disabled={isToggling || !isVerified}
+            color={brandColors.successLight}
           />
         </View>
+      </LegalCard>
 
-        {/* Verification Status */}
-        {!isVerified && (
-          <Surface style={styles.verificationCard} elevation={2}>
-            <Text style={styles.verificationIcon}>
-              {verificationStatus === 'pending' ? '⏳' : '❌'}
-            </Text>
-            <Text style={styles.verificationTitle}>
-              {verificationStatus === 'pending'
-                ? 'Verification Pending'
-                : 'Verification Rejected'}
-            </Text>
-            <Text style={styles.verificationText}>
-              {verificationStatus === 'pending'
-                ? 'Your Bar enrollment is being verified. This typically takes 24-48 hours. You will be notified once approved.'
-                : 'Your verification was rejected. Please check your documents and re-submit.'}
-            </Text>
-          </Surface>
-        )}
+      <View style={styles.metricsRow}>
+        <MetricTile label="Total Earned" value="Rs 0" />
+        <MetricTile label="Wallet" value="Rs 0" />
+      </View>
+      <View style={styles.metricsRow}>
+        <MetricTile label="Calls" value="0" />
+        <MetricTile label="Rating" value="0.0" />
+      </View>
 
-        {/* Online/Offline Toggle */}
-        <Surface style={styles.onlineCard} elevation={2}>
-          <View style={styles.onlineRow}>
-            <View>
-              <Text style={styles.onlineLabel}>
-                {isOnline ? 'You are Online' : 'You are Offline'}
-              </Text>
-              <Text style={styles.onlineSub}>
-                {isOnline
-                  ? 'You can receive call requests from citizens'
-                  : 'Toggle to start receiving call requests'}
-              </Text>
-            </View>
-            <Switch
-              value={isOnline}
-              onValueChange={handleToggleOnline}
-              disabled={isToggling || !isVerified}
-              color={brandColors.success}
-            />
-          </View>
-          {!isVerified && (
-            <Text style={styles.disabledNote}>
-              You must be verified before going online
-            </Text>
-          )}
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: isOnline ? brandColors.success : brandColors.textMuted },
-            ]}
-          />
-        </Surface>
+      <LegalCard style={styles.performanceCard}>
+        <Text style={styles.sectionTitle}>Performance</Text>
+        <View style={styles.performanceRow}>
+          <Text style={styles.performanceLabel}>Calls today</Text>
+          <Text style={styles.performanceValue}>0</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.performanceRow}>
+          <Text style={styles.performanceLabel}>Online time</Text>
+          <Text style={styles.performanceValue}>0h</Text>
+        </View>
+      </LegalCard>
 
-        {/* Earnings Summary */}
-        <Surface style={styles.earningsCard} elevation={1}>
-          <Text style={styles.sectionTitle}>Earnings Overview</Text>
-          <View style={styles.earningsGrid}>
-            <View style={styles.earningsItem}>
-              <Text style={styles.earningsValue}>₹0</Text>
-              <Text style={styles.earningsLabel}>Total Earned</Text>
-            </View>
-            <View style={styles.earningsDivider} />
-            <View style={styles.earningsItem}>
-              <Text style={styles.earningsValue}>₹0</Text>
-              <Text style={styles.earningsLabel}>Wallet Balance</Text>
-            </View>
-            <View style={styles.earningsDivider} />
-            <View style={styles.earningsItem}>
-              <Text style={styles.earningsValue}>0</Text>
-              <Text style={styles.earningsLabel}>Total Calls</Text>
-            </View>
-          </View>
-        </Surface>
-
-        {/* Stats */}
-        <Surface style={styles.statsCard} elevation={1}>
-          <Text style={styles.sectionTitle}>Your Performance</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>⭐</Text>
-              <Text style={styles.statValue}>0.0</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>📞</Text>
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Calls Today</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>🕐</Text>
-              <Text style={styles.statValue}>0h</Text>
-              <Text style={styles.statLabel}>Online Time</Text>
-            </View>
-          </View>
-        </Surface>
-
-        {/* Request Payout */}
-        <Button
-          mode="outlined"
-          onPress={() => router.push('/earnings')}
-          textColor={brandColors.secondary}
-          style={styles.payoutButton}
-          icon="bank-transfer"
-          disabled={!isVerified}
-        >
-          Request Payout
-        </Button>
-      </ScrollView>
-    </SafeAreaView>
+      <PrimaryAction
+        onPress={() => router.push('/earnings')}
+        icon="bank-transfer"
+        disabled={!isVerified}
+      >
+        Request Payout
+      </PrimaryAction>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: brandColors.background,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  header: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  greeting: {
-    ...typography.h2,
-    color: brandColors.white,
-  },
-  greetingSub: {
-    ...typography.bodySmall,
-    color: brandColors.textSecondary,
-    marginTop: 2,
-  },
-  verificationCard: {
-    backgroundColor: '#2D2006',
-    borderRadius: 14,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: brandColors.accent,
-  },
-  verificationIcon: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  verificationTitle: {
-    ...typography.h3,
-    color: brandColors.accent,
+  kicker: {
+    ...typography.section,
+    color: brandColors.textMuted,
     marginBottom: spacing.xs,
   },
-  verificationText: {
-    ...typography.bodySmall,
-    color: brandColors.textSecondary,
-    lineHeight: 22,
+  title: {
+    ...typography.h1,
+    color: brandColors.text,
+  },
+  profileButton: {
+    borderWidth: 1,
+    borderColor: brandColors.border,
+    borderRadius: radius.md,
+  },
+  verificationCard: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   onlineCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 16,
-    padding: spacing.lg,
     marginBottom: spacing.md,
-    position: 'relative',
-    overflow: 'hidden',
   },
   onlineRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  onlineCopy: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  cardTitle: {
+    ...typography.h3,
+    color: brandColors.text,
+  },
+  cardText: {
+    ...typography.bodySmall,
+    color: brandColors.textSecondary,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  performanceCard: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    ...typography.section,
+    color: brandColors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  performanceRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  onlineLabel: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
-  onlineSub: {
-    ...typography.caption,
+  performanceLabel: {
+    ...typography.bodySmall,
     color: brandColors.textSecondary,
-    marginTop: 2,
-    maxWidth: 240,
   },
-  disabledNote: {
-    ...typography.caption,
-    color: brandColors.accent,
-    marginTop: spacing.sm,
-  },
-  statusDot: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  earningsCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 14,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
+  performanceValue: {
     ...typography.body,
-    color: brandColors.white,
-    fontWeight: '600',
-    marginBottom: spacing.md,
+    color: brandColors.text,
+    fontWeight: '700',
   },
-  earningsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  earningsItem: {
-    alignItems: 'center',
-  },
-  earningsValue: {
-    ...typography.h2,
-    color: brandColors.secondary,
-  },
-  earningsLabel: {
-    ...typography.caption,
-    color: brandColors.textMuted,
-    marginTop: 4,
-  },
-  earningsDivider: {
-    width: 1,
-    height: 40,
+  divider: {
+    height: StyleSheet.hairlineWidth,
     backgroundColor: brandColors.border,
-  },
-  statsCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 14,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statIcon: {
-    fontSize: 24,
-    marginBottom: spacing.xs,
-  },
-  statValue: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: brandColors.textMuted,
-    marginTop: 2,
-  },
-  payoutButton: {
-    borderRadius: 12,
-    borderColor: brandColors.secondary,
   },
 });

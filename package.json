@@ -15,10 +15,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
-  "dependencies": {
-    "expo": "~54.0.35",
-    "expo-router": "~6.0.24"
-  },
+  "devDependencies": {},
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"

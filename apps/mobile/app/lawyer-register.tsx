@@ -1,16 +1,13 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput, Button, Surface, IconButton, HelperText } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Button, HelperText, Icon, Text, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '../stores/authStore';
-import { INDIAN_BAR_COUNCIL_STATES } from '@vakiloncall/shared';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
 import * as ImagePicker from 'expo-image-picker';
+import { LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
 
 export default function LawyerRegisterScreen(): React.JSX.Element {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
 
   const [barNumber, setBarNumber] = useState('');
   const [barState, setBarState] = useState('');
@@ -40,27 +37,24 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
     setError('');
 
     if (!barNumber.trim()) {
-      setError('Bar enrollment number is required');
+      setError('Bar enrollment number is required.');
       return;
     }
     if (!barState.trim()) {
-      setError('Bar council state is required');
+      setError('Bar council state is required.');
       return;
     }
     if (!certFile) {
-      setError('Enrollment certificate is required');
+      setError('Enrollment certificate is required.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      // Build FormData for multipart upload
       const formData = new FormData();
       formData.append('bar_enrollment_number', barNumber.trim());
       formData.append('bar_council_state', barState.trim());
-
-      // TypeScript limitation with FormData + React Native file — cast needed
       formData.append('enrollment_cert', {
         uri: certFile.uri,
         type: certFile.mimeType ?? 'image/jpeg',
@@ -75,7 +69,6 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
         } as unknown as Blob);
       }
 
-      // Direct fetch since api client doesn't handle multipart
       const { useAuthStore: store } = await import('../stores/authStore');
       const token = store.getState().accessToken;
       const Constants = (await import('expo-constants')).default;
@@ -92,11 +85,10 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
       });
 
       const data = await response.json();
-
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(data.error?.message ?? 'Registration failed');
+        setError(data.error?.message ?? 'Registration failed.');
       }
     } catch {
       setError('Something went wrong. Please try again.');
@@ -107,57 +99,38 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
 
   if (success) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.successContainer}>
-          <Text style={styles.successIcon}>✅</Text>
-          <Text style={styles.successTitle}>Registration Submitted!</Text>
-          <Text style={styles.successText}>
-            Your Bar enrollment certificate is under review.{'\n'}
-            Verification typically takes 24-48 hours.{'\n\n'}
-            We will notify you once your profile is verified and you can start
-            accepting calls.
-          </Text>
-          <Button
-            mode="contained"
-            onPress={() => router.replace('/lawyer-home')}
-            style={styles.successButton}
-          >
-            Go to Dashboard
-          </Button>
+      <Screen centered>
+        <View style={styles.successIcon}>
+          <Icon source="check-circle-outline" color={brandColors.successLight} size={48} />
         </View>
-      </SafeAreaView>
+        <Text style={styles.successTitle}>Registration submitted</Text>
+        <Text style={styles.successText}>
+          Your Bar enrollment certificate is under review. Verification typically
+          takes 24 to 48 hours.
+        </Text>
+        <PrimaryAction onPress={() => router.replace('/lawyer-home')}>
+          Go to Dashboard
+        </PrimaryAction>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <>
+      <ScreenHeader title="Lawyer Registration" subtitle="Bar verification" back />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+        style={styles.keyboard}
       >
-        <View style={styles.header}>
-          <IconButton
-            icon="arrow-left"
-            iconColor={brandColors.text}
-            size={24}
-            onPress={() => router.back()}
-          />
-          <Text style={styles.headerTitle}>Lawyer Registration</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Surface style={styles.formCard} elevation={2}>
-            <Text style={styles.formTitle}>Bar Council Verification</Text>
+        <Screen scroll>
+          <LegalCard style={styles.formCard}>
+            <StatusPill label="Verification required" icon="account-tie-outline" />
+            <Text style={styles.formTitle}>Bar Council details</Text>
             <Text style={styles.formSubtitle}>
-              We verify all lawyers against Bar Council of India records.
-              Please provide accurate details.
+              We verify lawyers before they can receive calls. Submit accurate
+              enrollment and certificate details.
             </Text>
 
-            {/* Bar Enrollment Number */}
             <TextInput
               label="Bar Enrollment Number *"
               value={barNumber}
@@ -165,12 +138,12 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
               mode="outlined"
               style={styles.input}
               outlineColor={brandColors.border}
-              activeOutlineColor={brandColors.primary}
+              activeOutlineColor={brandColors.text}
               textColor={brandColors.text}
-              placeholder="e.g., MH/1234/2024"
+              placeholder="MH/1234/2024"
+              placeholderTextColor={brandColors.textMuted}
             />
 
-            {/* Bar Council State */}
             <TextInput
               label="Bar Council State *"
               value={barState}
@@ -178,154 +151,134 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
               mode="outlined"
               style={styles.input}
               outlineColor={brandColors.border}
-              activeOutlineColor={brandColors.primary}
+              activeOutlineColor={brandColors.text}
               textColor={brandColors.text}
-              placeholder="e.g., Maharashtra"
+              placeholder="Maharashtra"
+              placeholderTextColor={brandColors.textMuted}
             />
             <HelperText type="info" style={styles.helper}>
-              Select the state where your Bar Council enrollment was done
+              Enter the state where your Bar Council enrollment was issued.
             </HelperText>
 
-            {/* Enrollment Certificate Upload */}
-            <Text style={styles.uploadLabel}>Enrollment Certificate *</Text>
-            <Button
-              mode="outlined"
+            <UploadButton
+              label="Enrollment Certificate *"
+              selected={Boolean(certFile)}
+              selectedText="Certificate selected"
+              defaultText="Upload certificate"
               onPress={() => pickDocument('cert')}
-              icon={certFile ? 'check-circle' : 'upload'}
-              textColor={certFile ? brandColors.success : brandColors.textSecondary}
-              style={styles.uploadButton}
-            >
-              {certFile ? 'Certificate Selected ✓' : 'Upload Certificate'}
-            </Button>
-
-            {/* ID Proof Upload (Optional) */}
-            <Text style={styles.uploadLabel}>ID Proof (Optional)</Text>
-            <Button
-              mode="outlined"
+            />
+            <UploadButton
+              label="ID Proof (optional)"
+              selected={Boolean(idFile)}
+              selectedText="ID proof selected"
+              defaultText="Upload ID proof"
               onPress={() => pickDocument('id')}
-              icon={idFile ? 'check-circle' : 'upload'}
-              textColor={idFile ? brandColors.success : brandColors.textSecondary}
-              style={styles.uploadButton}
-            >
-              {idFile ? 'ID Proof Selected ✓' : 'Upload ID Proof'}
-            </Button>
+            />
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Button
-              mode="contained"
+            <PrimaryAction
               onPress={handleSubmit}
               loading={isSubmitting}
               disabled={isSubmitting}
-              style={styles.submitButton}
-              labelStyle={styles.submitButtonLabel}
-              contentStyle={styles.submitButtonContent}
+              icon="file-upload-outline"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit for Verification'}
-            </Button>
-          </Surface>
-        </ScrollView>
+              {isSubmitting ? 'Submitting' : 'Submit for Verification'}
+            </PrimaryAction>
+          </LegalCard>
+        </Screen>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </>
+  );
+}
+
+function UploadButton({
+  label,
+  selected,
+  selectedText,
+  defaultText,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  selectedText: string;
+  defaultText: string;
+  onPress: () => void;
+}): React.JSX.Element {
+  return (
+    <View style={styles.uploadGroup}>
+      <Text style={styles.uploadLabel}>{label}</Text>
+      <Button
+        mode="outlined"
+        onPress={onPress}
+        icon={selected ? 'check-circle-outline' : 'upload-outline'}
+        textColor={selected ? brandColors.successLight : brandColors.textSecondary}
+        style={styles.uploadButton}
+      >
+        {selected ? selectedText : defaultText}
+      </Button>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  keyboard: {
     flex: 1,
     backgroundColor: brandColors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
   formCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 16,
-    padding: spacing.lg,
+    gap: spacing.md,
   },
   formTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-    marginBottom: spacing.xs,
+    ...typography.h2,
+    color: brandColors.text,
   },
   formSubtitle: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
-    marginBottom: spacing.lg,
-    lineHeight: 20,
   },
   input: {
     backgroundColor: brandColors.surface,
-    marginBottom: spacing.sm,
   },
   helper: {
     color: brandColors.textMuted,
-    marginBottom: spacing.md,
+  },
+  uploadGroup: {
+    gap: spacing.xs,
   },
   uploadLabel: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
-    marginBottom: spacing.sm,
-    marginTop: spacing.sm,
+    fontWeight: '700',
   },
   uploadButton: {
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderColor: brandColors.border,
-    marginBottom: spacing.sm,
   },
   errorText: {
     ...typography.bodySmall,
-    color: brandColors.error,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  submitButton: {
-    borderRadius: 12,
-    marginTop: spacing.lg,
-  },
-  submitButtonLabel: {
-    ...typography.button,
-    color: brandColors.white,
-  },
-  submitButtonContent: {
-    paddingVertical: spacing.xs,
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
+    color: brandColors.errorLight,
   },
   successIcon: {
-    fontSize: 64,
+    width: 92,
+    height: 92,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: brandColors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.lg,
   },
   successTitle: {
     ...typography.h2,
-    color: brandColors.white,
-    marginBottom: spacing.md,
+    color: brandColors.text,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   successText: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: brandColors.textSecondary,
     textAlign: 'center',
-    lineHeight: 26,
     marginBottom: spacing.xl,
-  },
-  successButton: {
-    borderRadius: 12,
-    paddingHorizontal: spacing.xl,
   },
 });

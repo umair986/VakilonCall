@@ -1,21 +1,38 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { Text, Button, Surface, IconButton, ActivityIndicator } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useCallback, useEffect } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Icon, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useTokenStore } from '../stores/tokenStore';
-import { useAuthStore } from '../stores/authStore';
 import { TOKEN_PACKS } from '@vakiloncall/shared';
 import { api } from '../services/api';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import { ActionRow, LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
 
 export default function TokenStoreScreen(): React.JSX.Element {
   const router = useRouter();
   const balance = useTokenStore((s) => s.balance);
+  const setBalance = useTokenStore((s) => s.setBalance);
   const incrementBalance = useTokenStore((s) => s.incrementBalance);
-  const user = useAuthStore((s) => s.user);
 
-  const [selectedPackIndex, setSelectedPackIndex] = useState<number>(1); // Default to "Basic" (Most Popular)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBalance = async () => {
+      try {
+        const res = await api.getTokenBalance();
+        if (res.success && res.data && typeof res.data.token_balance === 'number' && isMounted) {
+          setBalance(res.data.token_balance);
+        }
+      } catch (err) {
+        console.error('Failed to fetch token balance in store:', err);
+      }
+    };
+    fetchBalance();
+    return () => {
+      isMounted = false;
+    };
+  }, [setBalance]);
+
+  const [selectedPackIndex, setSelectedPackIndex] = useState<number>(1);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -26,35 +43,19 @@ export default function TokenStoreScreen(): React.JSX.Element {
     setIsPurchasing(true);
 
     try {
-      // For now, simulate the Razorpay flow since the SDK needs native setup.
-      // In production, this will:
-      // 1. Call api.createTokenOrder(pack_id) to get a Razorpay order
-      // 2. Open Razorpay checkout
-      // 3. Call api.verifyPayment() with the Razorpay response
-      // 4. Update local token balance
-
       const selectedPack = TOKEN_PACKS[selectedPackIndex];
       if (!selectedPack) {
-        setError('Please select a token pack');
+        setError('Please select a token pack.');
         return;
       }
 
-      // Step 1: Create order on backend
       const orderResult = await api.createTokenOrder('placeholder-pack-id');
-
       if (!orderResult.success) {
-        // In dev mode without Razorpay keys, show a helpful message
-        setError(
-          'Payment gateway not configured yet. ' +
-          'Add your Razorpay keys to the backend .env file to enable purchases.'
-        );
+        setError('Payment gateway is not configured yet. Add Razorpay keys to enable purchases.');
         return;
       }
 
-      // Step 2: In production, open Razorpay checkout here
-      // Step 3: Verify payment
-      // Step 4: Update balance
-      setSuccess(`${selectedPack.tokens} tokens added to your account!`);
+      setSuccess(`${selectedPack.tokens} tokens added to your account.`);
       incrementBalance(selectedPack.tokens);
     } catch {
       setError('Purchase failed. Please try again.');
@@ -63,197 +64,103 @@ export default function TokenStoreScreen(): React.JSX.Element {
     }
   }, [selectedPackIndex, incrementBalance]);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={brandColors.text}
-          size={24}
-          onPress={() => router.back()}
-        />
-        <Text style={styles.headerTitle}>Token Store</Text>
-        <View style={{ width: 48 }} />
-      </View>
+  const selectedPack = TOKEN_PACKS[selectedPackIndex];
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Current Balance */}
-        <Surface style={styles.balanceCard} elevation={2}>
-          <Text style={styles.balanceLabel}>CURRENT BALANCE</Text>
+  return (
+    <>
+      <ScreenHeader title="Token Store" subtitle="Consultation balance" back />
+      <Screen scroll>
+        <LegalCard style={styles.balanceCard}>
+          <Text style={styles.sectionLabel}>Current balance</Text>
           <View style={styles.balanceRow}>
             <Text style={styles.balanceValue}>{balance}</Text>
-            <Text style={styles.balanceUnit}>
-              token{balance !== 1 ? 's' : ''}
-            </Text>
+            <Text style={styles.balanceUnit}>token{balance !== 1 ? 's' : ''}</Text>
           </View>
-          <Text style={styles.balanceSub}>
-            Each token = 1 legal consultation (up to 15 min)
-          </Text>
-        </Surface>
+          <Text style={styles.balanceSub}>Each token covers one legal consultation up to 15 minutes.</Text>
+        </LegalCard>
 
-        {/* Token Packs */}
-        <Text style={styles.sectionTitle}>Choose a Token Pack</Text>
+        <Text style={styles.sectionTitle}>Choose a pack</Text>
 
-        {TOKEN_PACKS.map((pack, index) => {
-          const isSelected = selectedPackIndex === index;
-          const savings =
-            index > 0
-              ? Math.round(
-                  ((TOKEN_PACKS[0]!.per_token_inr - pack.per_token_inr) /
-                    TOKEN_PACKS[0]!.per_token_inr) *
-                    100
-                )
-              : 0;
+        <View style={styles.packList}>
+          {TOKEN_PACKS.map((pack, index) => {
+            const isSelected = selectedPackIndex === index;
+            const savings =
+              index > 0
+                ? Math.round(((TOKEN_PACKS[0]!.per_token_inr - pack.per_token_inr) / TOKEN_PACKS[0]!.per_token_inr) * 100)
+                : 0;
 
-          return (
-            <Pressable
-              key={pack.name}
-              onPress={() => setSelectedPackIndex(index)}
-            >
-              <Surface
-                style={[
-                  styles.packCard,
-                  isSelected && styles.packCardSelected,
-                  pack.badge === 'Most Popular' && styles.packCardPopular,
-                ]}
-                elevation={isSelected ? 3 : 1}
-              >
-                {/* Badge */}
-                {pack.badge ? (
-                  <View
-                    style={[
-                      styles.badge,
-                      pack.badge === 'Most Popular'
-                        ? styles.badgePopular
-                        : styles.badgeBest,
-                    ]}
-                  >
-                    <Text style={styles.badgeText}>{pack.badge}</Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.packContent}>
-                  {/* Left: Pack Info */}
-                  <View style={styles.packInfo}>
-                    <Text style={styles.packName}>{pack.name}</Text>
-                    <Text style={styles.packTokens}>
-                      {pack.tokens} token{pack.tokens !== 1 ? 's' : ''}
-                    </Text>
-                    {savings > 0 ? (
-                      <Text style={styles.packSavings}>
-                        Save {savings}% per token
+            return (
+              <Pressable key={pack.name} onPress={() => setSelectedPackIndex(index)}>
+                <LegalCard style={[styles.packCard, isSelected && styles.packSelected]}>
+                  <View style={styles.packContent}>
+                    <View style={styles.radioOuter}>
+                      {isSelected ? <View style={styles.radioInner} /> : null}
+                    </View>
+                    <View style={styles.packInfo}>
+                      <View style={styles.packNameRow}>
+                        <Text style={styles.packName}>{pack.name}</Text>
+                        {pack.badge ? <StatusPill label={pack.badge} /> : null}
+                      </View>
+                      <Text style={styles.packTokens}>
+                        {pack.tokens} token{pack.tokens !== 1 ? 's' : ''}
+                        {savings > 0 ? ` | Save ${savings}% per token` : ''}
                       </Text>
-                    ) : null}
+                    </View>
+                    <View style={styles.packPricing}>
+                      <Text style={styles.packPrice}>Rs {pack.price_inr}</Text>
+                      <Text style={styles.packPerToken}>Rs {pack.per_token_inr.toFixed(0)}/token</Text>
+                    </View>
                   </View>
+                </LegalCard>
+              </Pressable>
+            );
+          })}
+        </View>
 
-                  {/* Right: Price */}
-                  <View style={styles.packPricing}>
-                    <Text style={styles.packPrice}>₹{pack.price_inr}</Text>
-                    <Text style={styles.packPerToken}>
-                      ₹{pack.per_token_inr.toFixed(0)}/token
-                    </Text>
-                  </View>
-
-                  {/* Selection Indicator */}
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      isSelected && styles.radioOuterSelected,
-                    ]}
-                  >
-                    {isSelected ? (
-                      <View style={styles.radioInner} />
-                    ) : null}
-                  </View>
-                </View>
-              </Surface>
-            </Pressable>
-          );
-        })}
-
-        {/* Error / Success Messages */}
         {error ? (
-          <Surface style={styles.messageCard} elevation={1}>
-            <Text style={styles.errorText}>{error}</Text>
-          </Surface>
+          <LegalCard variant="danger" style={styles.messageCard}>
+            <Text style={styles.messageText}>{error}</Text>
+          </LegalCard>
         ) : null}
         {success ? (
-          <Surface style={styles.successCard} elevation={1}>
-            <Text style={styles.successText}>{success}</Text>
-          </Surface>
+          <LegalCard variant="notice" style={styles.messageCard}>
+            <Text style={styles.messageText}>{success}</Text>
+          </LegalCard>
         ) : null}
 
-        {/* Buy Button */}
-        <Button
-          mode="contained"
+        <PrimaryAction
           onPress={handlePurchase}
           loading={isPurchasing}
           disabled={isPurchasing}
-          style={styles.buyButton}
-          labelStyle={styles.buyButtonLabel}
-          contentStyle={styles.buyButtonContent}
-          icon="credit-card"
+          icon="credit-card-outline"
         >
-          {isPurchasing
-            ? 'Processing...'
-            : `Pay ₹${TOKEN_PACKS[selectedPackIndex]?.price_inr ?? 0}`}
-        </Button>
+          {isPurchasing ? 'Processing' : `Pay Rs ${selectedPack?.price_inr ?? 0}`}
+        </PrimaryAction>
 
-        <Text style={styles.paymentNote}>
-          Secure payment via Razorpay. UPI, Credit/Debit Cards, Wallets accepted.
-        </Text>
+        <Text style={styles.paymentNote}>Secure payment via Razorpay. UPI, cards, and wallets supported.</Text>
 
-        {/* Transaction History Link */}
-        <Button
-          mode="text"
-          onPress={() => router.push('/transactions')}
-          textColor={brandColors.textSecondary}
-          style={styles.historyButton}
-          icon="history"
-        >
-          View Transaction History
-        </Button>
-      </ScrollView>
-    </SafeAreaView>
+        <LegalCard style={styles.historyCard}>
+          <ActionRow
+            icon="history"
+            title="Transaction History"
+            subtitle="Review token purchases, deductions, and refunds"
+            onPress={() => router.push('/transactions')}
+          />
+        </LegalCard>
+      </Screen>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: brandColors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
   balanceCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
     alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xl,
   },
-  balanceLabel: {
-    ...typography.caption,
+  sectionLabel: {
+    ...typography.section,
     color: brandColors.textMuted,
-    letterSpacing: 2,
-    marginBottom: spacing.xs,
   },
   balanceRow: {
     flexDirection: 'row',
@@ -261,9 +168,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   balanceValue: {
-    fontSize: 56,
+    fontSize: 52,
     fontWeight: '700',
-    color: brandColors.primary,
+    color: brandColors.text,
+    fontVariant: ['tabular-nums'],
   },
   balanceUnit: {
     ...typography.h3,
@@ -272,147 +180,89 @@ const styles = StyleSheet.create({
   balanceSub: {
     ...typography.caption,
     color: brandColors.textMuted,
-    marginTop: spacing.xs,
+    textAlign: 'center',
   },
   sectionTitle: {
-    ...typography.h3,
-    color: brandColors.white,
+    ...typography.section,
+    color: brandColors.textMuted,
     marginBottom: spacing.md,
+  },
+  packList: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   packCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 14,
     padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    position: 'relative',
-    overflow: 'hidden',
   },
-  packCardSelected: {
-    borderColor: brandColors.primary,
-  },
-  packCardPopular: {
-    borderColor: brandColors.secondary,
-  },
-  badge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderBottomLeftRadius: 10,
-  },
-  badgePopular: {
-    backgroundColor: brandColors.secondary,
-  },
-  badgeBest: {
-    backgroundColor: brandColors.accent,
-  },
-  badgeText: {
-    ...typography.caption,
-    color: brandColors.white,
-    fontWeight: '700',
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  packSelected: {
+    borderColor: brandColors.text,
+    backgroundColor: brandColors.surfaceElevated,
   },
   packContent: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  packInfo: {
-    flex: 1,
-  },
-  packName: {
-    ...typography.body,
-    color: brandColors.white,
-    fontWeight: '600',
-  },
-  packTokens: {
-    ...typography.caption,
-    color: brandColors.textSecondary,
-    marginTop: 2,
-  },
-  packSavings: {
-    ...typography.caption,
-    color: brandColors.secondary,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  packPricing: {
-    alignItems: 'flex-end',
-    marginRight: spacing.md,
-  },
-  packPrice: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
-  packPerToken: {
-    ...typography.caption,
-    color: brandColors.textMuted,
-    marginTop: 2,
+    gap: spacing.md,
   },
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    borderWidth: 2,
-    borderColor: brandColors.border,
-    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: brandColors.textSecondary,
     alignItems: 'center',
-  },
-  radioOuterSelected: {
-    borderColor: brandColors.primary,
+    justifyContent: 'center',
   },
   radioInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: brandColors.primary,
+    backgroundColor: brandColors.text,
+  },
+  packInfo: {
+    flex: 1,
+  },
+  packNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  packName: {
+    ...typography.body,
+    color: brandColors.text,
+    fontWeight: '700',
+  },
+  packTokens: {
+    ...typography.caption,
+    color: brandColors.textMuted,
+    marginTop: 3,
+  },
+  packPricing: {
+    alignItems: 'flex-end',
+  },
+  packPrice: {
+    ...typography.h3,
+    color: brandColors.text,
+  },
+  packPerToken: {
+    ...typography.caption,
+    color: brandColors.textMuted,
   },
   messageCard: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 10,
-    padding: spacing.md,
     marginBottom: spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: brandColors.error,
   },
-  errorText: {
+  messageText: {
     ...typography.bodySmall,
-    color: brandColors.errorLight,
-  },
-  successCard: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderLeftWidth: 3,
-    borderLeftColor: brandColors.secondary,
-  },
-  successText: {
-    ...typography.bodySmall,
-    color: brandColors.secondaryLight,
-  },
-  buyButton: {
-    borderRadius: 14,
-    marginTop: spacing.sm,
-  },
-  buyButtonLabel: {
-    ...typography.button,
-    color: brandColors.white,
-  },
-  buyButtonContent: {
-    paddingVertical: spacing.sm,
+    color: brandColors.textSecondary,
   },
   paymentNote: {
     ...typography.caption,
     color: brandColors.textMuted,
     textAlign: 'center',
     marginTop: spacing.md,
+    marginBottom: spacing.lg,
   },
-  historyButton: {
-    marginTop: spacing.lg,
+  historyCard: {
+    paddingVertical: spacing.sm,
   },
 });

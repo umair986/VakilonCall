@@ -1,316 +1,240 @@
-import React, { useCallback } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Button, Surface, IconButton } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Button, Icon, IconButton, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useTokenStore } from '../stores/tokenStore';
+import { api } from '../services/api';
 import { SCENARIOS } from '@vakiloncall/shared';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import {
+  ActionRow,
+  LegalCard,
+  MetricTile,
+  PrimaryAction,
+  Screen,
+  StatusPill,
+} from '../components/ui';
 
 export default function HomeScreen(): React.JSX.Element {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const balance = useTokenStore((s) => s.balance);
+  const setBalance = useTokenStore((s) => s.setBalance);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBalance = async () => {
+      try {
+        const res = await api.getTokenBalance();
+        if (res.success && res.data && typeof res.data.token_balance === 'number' && isMounted) {
+          setBalance(res.data.token_balance);
+        }
+      } catch (err) {
+        console.error('Failed to fetch token balance:', err);
+      }
+    };
+    fetchBalance();
+    return () => {
+      isMounted = false;
+    };
+  }, [setBalance]);
 
   const handleGetHelp = useCallback((): void => {
-    if (balance <= 0) {
-      router.push('/token-store');
-      return;
-    }
-    router.push('/scenario-select');
+    router.push(balance <= 0 ? '/token-store' : '/scenario-select');
   }, [balance, router]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>
-              Hello, {user?.full_name ?? 'there'} 👋
-            </Text>
-            <Text style={styles.greetingSub}>Your legal safety companion</Text>
+    <Screen scroll>
+      <View style={styles.topBar}>
+        <View>
+          <Text style={styles.kicker}>Citizen dashboard</Text>
+          <Text style={styles.title}>{user?.full_name ?? 'Legal assistance'}</Text>
+        </View>
+        <IconButton
+          icon="account-circle-outline"
+          iconColor={brandColors.textSecondary}
+          size={28}
+          onPress={() => router.push('/profile')}
+          style={styles.profileButton}
+        />
+      </View>
+
+      <View style={styles.metricsRow}>
+        <MetricTile
+          label="Tokens"
+          value={balance}
+          supportingText={balance === 1 ? '1 consultation' : `${balance} consultations`}
+        />
+        <MetricTile label="Response" value="<60s" supportingText="Typical match time" />
+      </View>
+
+      <LegalCard style={styles.commandCard}>
+        <View style={styles.commandHeader}>
+          <View style={styles.commandIcon}>
+            <Icon source="phone-in-talk-outline" color={brandColors.black} size={24} />
           </View>
-          <IconButton
-            icon="account-circle"
-            iconColor={brandColors.textSecondary}
-            size={32}
-            onPress={() => router.push('/profile')}
+          <StatusPill
+            label={balance > 0 ? 'Ready' : 'Token required'}
+            tone={balance > 0 ? 'success' : 'warning'}
           />
         </View>
+        <Text style={styles.commandTitle}>Request legal assistance</Text>
+        <Text style={styles.commandCopy}>
+          Select your situation and connect with an available verified lawyer.
+        </Text>
+        <PrimaryAction
+          onPress={handleGetHelp}
+          icon={balance > 0 ? 'phone-in-talk-outline' : 'plus'}
+        >
+          {balance > 0 ? 'Start Request' : 'Buy Tokens'}
+        </PrimaryAction>
+      </LegalCard>
 
-        {/* Token Balance Card */}
-        <Surface style={styles.balanceCard} elevation={2}>
-          <View style={styles.balanceRow}>
-            <View>
-              <Text style={styles.balanceLabel}>Token Balance</Text>
-              <Text style={styles.balanceValue}>{balance}</Text>
-              <Text style={styles.balanceSub}>
-                {balance === 0
-                  ? 'Buy tokens to get legal help'
-                  : `${balance} consultation${balance !== 1 ? 's' : ''} available`}
-              </Text>
-            </View>
-            <Button
-              mode="outlined"
-              onPress={() => router.push('/token-store')}
-              textColor={brandColors.primary}
-              style={styles.buyButton}
-              icon="plus"
-              compact
-            >
-              Buy Tokens
-            </Button>
-          </View>
-        </Surface>
-
-        {/* Main CTA — Get Help Now */}
-        <Surface style={styles.ctaCard} elevation={3}>
-          <Text style={styles.ctaEmoji}>🚨</Text>
-          <Text style={styles.ctaTitle}>Need Legal Help Right Now?</Text>
-          <Text style={styles.ctaSubtitle}>
-            Connect with a verified lawyer in under 60 seconds
-          </Text>
-          <Button
-            mode="contained"
-            onPress={handleGetHelp}
-            style={styles.ctaButton}
-            labelStyle={styles.ctaButtonLabel}
-            contentStyle={styles.ctaButtonContent}
-            icon="phone"
-          >
-            {balance > 0 ? 'Get Legal Help Now' : 'Buy Tokens to Start'}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Common situations</Text>
+          <Button mode="text" textColor={brandColors.textSecondary} onPress={() => router.push('/scenario-select')}>
+            View all
           </Button>
-        </Surface>
-
-        {/* Quick Scenarios */}
-        <View style={styles.scenariosSection}>
-          <Text style={styles.sectionTitle}>Common Situations</Text>
-          <View style={styles.scenariosGrid}>
-            {SCENARIOS.slice(0, 6).map((scenario) => (
-              <Surface key={scenario.type} style={styles.scenarioChip} elevation={1}>
-                <Text style={styles.scenarioLabel}>{scenario.label}</Text>
-              </Surface>
-            ))}
-          </View>
         </View>
+        <View style={styles.scenarioList}>
+          {SCENARIOS.slice(0, 5).map((scenario) => (
+            <LegalCard key={scenario.type} variant="outlined" style={styles.scenarioRow}>
+              <Icon source={scenario.icon || 'gavel'} color={brandColors.textSecondary} size={20} />
+              <View style={styles.scenarioCopy}>
+                <Text style={styles.scenarioLabel}>{scenario.label}</Text>
+                <Text style={styles.scenarioDescription} numberOfLines={1}>
+                  {scenario.description}
+                </Text>
+              </View>
+            </LegalCard>
+          ))}
+        </View>
+      </View>
 
-        {/* Free Rights Section */}
-        <Surface style={styles.rightsCard} elevation={1}>
-          <View style={styles.rightsContent}>
-            <Text style={styles.rightsIcon}>📜</Text>
-            <View style={styles.rightsText}>
-              <Text style={styles.rightsTitle}>Know Your Rights</Text>
-              <Text style={styles.rightsSubtitle}>
-                Free access to your constitutional rights — no tokens needed
-              </Text>
-            </View>
-          </View>
-          <Button
-            mode="text"
-            onPress={() => router.push('/rights')}
-            textColor={brandColors.secondary}
-            compact
-          >
-            View Rights →
-          </Button>
-        </Surface>
-
-        {/* SOS Setup Reminder */}
-        <Surface style={styles.sosCard} elevation={1}>
-          <View style={styles.sosContent}>
-            <Text style={styles.sosIcon}>🆘</Text>
-            <View style={styles.sosText}>
-              <Text style={styles.sosTitle}>Set Up Emergency Contacts</Text>
-              <Text style={styles.sosSubtitle}>
-                Your contacts will be alerted automatically when you need help
-              </Text>
-            </View>
-          </View>
-          <Button
-            mode="text"
-            onPress={() => router.push('/sos-contacts')}
-            textColor={brandColors.accent}
-            compact
-          >
-            Set Up →
-          </Button>
-        </Surface>
-      </ScrollView>
-    </SafeAreaView>
+      <LegalCard style={styles.actionsCard}>
+        <Text style={styles.sectionTitle}>Legal readiness</Text>
+        <ActionRow
+          icon="shield-check-outline"
+          title="Know Your Rights"
+          subtitle="Free constitutional rights reference"
+          onPress={() => router.push('/rights')}
+        />
+        <View style={styles.divider} />
+        <ActionRow
+          icon="alert-outline"
+          title="Emergency Contacts"
+          subtitle="Add trusted contacts for location alerts"
+          tone="danger"
+          onPress={() => router.push('/sos-contacts')}
+        />
+        <View style={styles.divider} />
+        <ActionRow
+          icon="wallet-outline"
+          title="Token Store"
+          subtitle="Manage consultation balance"
+          onPress={() => router.push('/token-store')}
+        />
+      </LegalCard>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: brandColors.background,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  header: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  greeting: {
-    ...typography.h2,
-    color: brandColors.white,
-  },
-  greetingSub: {
-    ...typography.bodySmall,
-    color: brandColors.textSecondary,
-    marginTop: 2,
-  },
-  balanceCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    ...typography.caption,
+  kicker: {
+    ...typography.section,
     color: brandColors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  balanceValue: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: brandColors.primary,
-    marginVertical: 2,
-  },
-  balanceSub: {
-    ...typography.caption,
-    color: brandColors.textSecondary,
-  },
-  buyButton: {
-    borderRadius: 10,
-    borderColor: brandColors.primary,
-  },
-  ctaCard: {
-    backgroundColor: brandColors.primaryDark,
-    borderRadius: 20,
-    padding: spacing.xl,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  ctaEmoji: {
-    fontSize: 48,
-    marginBottom: spacing.sm,
-  },
-  ctaTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-    textAlign: 'center',
     marginBottom: spacing.xs,
   },
-  ctaSubtitle: {
-    ...typography.bodySmall,
-    color: 'rgba(255,255,255,0.75)',
-    textAlign: 'center',
-    marginBottom: spacing.lg,
+  title: {
+    ...typography.h1,
+    color: brandColors.text,
   },
-  ctaButton: {
-    borderRadius: 14,
-    width: '100%',
+  profileButton: {
+    borderWidth: 1,
+    borderColor: brandColors.border,
+    borderRadius: radius.md,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  commandCard: {
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    backgroundColor: brandColors.text,
+  },
+  commandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  commandIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: brandColors.white,
+    borderWidth: 1,
+    borderColor: '#D5D5CE',
   },
-  ctaButtonLabel: {
-    ...typography.button,
-    color: brandColors.primaryDark,
+  commandTitle: {
+    ...typography.h2,
+    color: brandColors.black,
   },
-  ctaButtonContent: {
-    paddingVertical: spacing.sm,
+  commandCopy: {
+    ...typography.bodySmall,
+    color: '#3F3F3A',
   },
-  scenariosSection: {
+  section: {
     marginBottom: spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-    marginBottom: spacing.md,
+    ...typography.section,
+    color: brandColors.textMuted,
   },
-  scenariosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  scenarioList: {
     gap: spacing.sm,
   },
-  scenarioChip: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  scenarioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  scenarioCopy: {
+    flex: 1,
   },
   scenarioLabel: {
-    ...typography.caption,
-    color: brandColors.textSecondary,
+    ...typography.bodySmall,
+    color: brandColors.text,
+    fontWeight: '700',
   },
-  rightsCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 14,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  rightsContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  rightsIcon: {
-    fontSize: 28,
-  },
-  rightsText: {
-    flex: 1,
-  },
-  rightsTitle: {
-    ...typography.body,
-    color: brandColors.white,
-    fontWeight: '600',
-  },
-  rightsSubtitle: {
+  scenarioDescription: {
     ...typography.caption,
     color: brandColors.textMuted,
     marginTop: 2,
   },
-  sosCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 14,
-    padding: spacing.md,
+  actionsCard: {
+    gap: spacing.sm,
   },
-  sosContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  sosIcon: {
-    fontSize: 28,
-  },
-  sosText: {
-    flex: 1,
-  },
-  sosTitle: {
-    ...typography.body,
-    color: brandColors.white,
-    fontWeight: '600',
-  },
-  sosSubtitle: {
-    ...typography.caption,
-    color: brandColors.textMuted,
-    marginTop: 2,
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: brandColors.border,
   },
 });

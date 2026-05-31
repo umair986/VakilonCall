@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, Surface, IconButton, ActivityIndicator, Divider } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Divider, Icon, Text } from 'react-native-paper';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import { EmptyState, LegalCard, ScreenHeader } from '../components/ui';
 
 interface ITransaction {
   id: string;
@@ -13,7 +12,6 @@ interface ITransaction {
   metadata: Record<string, unknown>;
 }
 
-// Mock data for development (will be replaced with API call)
 const MOCK_TRANSACTIONS: ITransaction[] = [
   {
     id: '1',
@@ -41,42 +39,33 @@ const MOCK_TRANSACTIONS: ITransaction[] = [
     type: 'refund',
     tokens: 1,
     created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    metadata: { reason: 'Call dropped < 2 min' },
-  },
-  {
-    id: '5',
-    type: 'promo',
-    tokens: 2,
-    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    metadata: { reason: 'Welcome bonus' },
+    metadata: { reason: 'Call dropped under 2 min' },
   },
 ];
 
 function getTransactionIcon(type: ITransaction['type']): string {
   switch (type) {
     case 'purchase':
-      return 'arrow-down-circle';
+      return 'arrow-down-circle-outline';
     case 'deduct':
-      return 'arrow-up-circle';
+      return 'arrow-up-circle-outline';
     case 'refund':
       return 'refresh-circle';
     case 'promo':
-      return 'gift';
+      return 'gift-outline';
     default:
-      return 'circle';
+      return 'circle-outline';
   }
 }
 
 function getTransactionColor(type: ITransaction['type']): string {
   switch (type) {
     case 'purchase':
-      return brandColors.secondary;
-    case 'deduct':
-      return brandColors.error;
     case 'refund':
-      return brandColors.info;
     case 'promo':
-      return brandColors.accent;
+      return brandColors.successLight;
+    case 'deduct':
+      return brandColors.errorLight;
     default:
       return brandColors.textMuted;
   }
@@ -85,13 +74,13 @@ function getTransactionColor(type: ITransaction['type']): string {
 function getTransactionLabel(type: ITransaction['type'], metadata: Record<string, unknown>): string {
   switch (type) {
     case 'purchase':
-      return `Purchased — ${(metadata.pack_name as string) ?? 'Token Pack'}`;
+      return `Purchased - ${(metadata.pack_name as string) ?? 'Token Pack'}`;
     case 'deduct':
-      return `Consultation — ${(metadata.scenario as string) ?? 'Legal Help'}`;
+      return `Consultation - ${(metadata.scenario as string) ?? 'Legal Help'}`;
     case 'refund':
-      return `Refund — ${(metadata.reason as string) ?? 'Call issue'}`;
+      return `Refund - ${(metadata.reason as string) ?? 'Call issue'}`;
     case 'promo':
-      return `Bonus — ${(metadata.reason as string) ?? 'Promotion'}`;
+      return `Bonus - ${(metadata.reason as string) ?? 'Promotion'}`;
     default:
       return 'Transaction';
   }
@@ -116,18 +105,11 @@ function TransactionItem({ item }: { item: ITransaction }): React.JSX.Element {
 
   return (
     <View style={styles.txItem}>
-      <View style={[styles.txIconBg, { backgroundColor: `${color}20` }]}>
-        <IconButton
-          icon={getTransactionIcon(item.type)}
-          iconColor={color}
-          size={20}
-          style={styles.txIcon}
-        />
+      <View style={[styles.txIconBg, { borderColor: color }]}>
+        <Icon source={getTransactionIcon(item.type)} color={color} size={20} />
       </View>
       <View style={styles.txInfo}>
-        <Text style={styles.txLabel}>
-          {getTransactionLabel(item.type, item.metadata)}
-        </Text>
+        <Text style={styles.txLabel}>{getTransactionLabel(item.type, item.metadata)}</Text>
         <Text style={styles.txDate}>{formatDate(item.created_at)}</Text>
       </View>
       <Text style={[styles.txAmount, { color }]}>
@@ -138,12 +120,10 @@ function TransactionItem({ item }: { item: ITransaction }): React.JSX.Element {
 }
 
 export default function TransactionsScreen(): React.JSX.Element {
-  const router = useRouter();
   const [transactions, setTransactions] = useState<ITransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Replace with api.getCallHistory() or a dedicated transactions endpoint
     const timer = setTimeout(() => {
       setTransactions(MOCK_TRANSACTIONS);
       setIsLoading(false);
@@ -157,51 +137,36 @@ export default function TransactionsScreen(): React.JSX.Element {
     []
   );
 
-  const keyExtractor = useCallback(
-    (item: ITransaction) => item.id,
-    []
-  );
+  const keyExtractor = useCallback((item: ITransaction) => item.id, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={brandColors.text}
-          size={24}
-          onPress={() => router.back()}
-        />
-        <Text style={styles.headerTitle}>Transaction History</Text>
-        <View style={{ width: 48 }} />
+    <>
+      <ScreenHeader title="Transactions" subtitle="Token ledger" back />
+      <View style={styles.container}>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={brandColors.text} />
+            <Text style={styles.loadingText}>Loading transactions</Text>
+          </View>
+        ) : transactions.length === 0 ? (
+          <EmptyState
+            icon="clipboard-text-outline"
+            title="No transactions"
+            subtitle="Token purchase and usage history will appear here."
+          />
+        ) : (
+          <LegalCard style={styles.listCard}>
+            <FlatList
+              data={transactions}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              ItemSeparatorComponent={() => <Divider style={styles.divider} />}
+              showsVerticalScrollIndicator={false}
+            />
+          </LegalCard>
+        )}
       </View>
-
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={brandColors.primary} />
-          <Text style={styles.loadingText}>Loading transactions...</Text>
-        </View>
-      ) : transactions.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyTitle}>No Transactions Yet</Text>
-          <Text style={styles.emptySubtitle}>
-            Your token purchase and usage history will appear here.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={transactions}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => (
-            <Divider style={styles.divider} />
-          )}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -209,21 +174,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: brandColors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
-  listContent: {
     padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+  },
+  listCard: {
+    flex: 1,
+    paddingVertical: spacing.sm,
   },
   txItem: {
     flexDirection: 'row',
@@ -233,21 +188,20 @@ const styles = StyleSheet.create({
   txIconBg: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.sm,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  txIcon: {
-    margin: 0,
+    backgroundColor: brandColors.surface,
   },
   txInfo: {
     flex: 1,
     marginLeft: spacing.md,
   },
   txLabel: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: brandColors.text,
-    fontWeight: '500',
+    fontWeight: '700',
   },
   txDate: {
     ...typography.caption,
@@ -259,10 +213,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 40,
     textAlign: 'right',
+    fontVariant: ['tabular-nums'],
   },
   divider: {
     backgroundColor: brandColors.border,
-    opacity: 0.3,
   },
   loadingContainer: {
     flex: 1,
@@ -273,25 +227,5 @@ const styles = StyleSheet.create({
   loadingText: {
     ...typography.body,
     color: brandColors.textMuted,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-    marginBottom: spacing.sm,
-  },
-  emptySubtitle: {
-    ...typography.body,
-    color: brandColors.textMuted,
-    textAlign: 'center',
   },
 });

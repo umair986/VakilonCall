@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A1628"
+      "backgroundColor": "#080808"
     },
     "ios": {
       "supportsTablet": false,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#0A1628"
+        "backgroundColor": "#080808"
       },
       "package": "com.vakiloncall.app",
       "permissions": [
@@ -43,8 +43,7 @@
         "projectId": ""
       },
       "SUPABASE_URL": "",
-      "SUPABASE_ANON_KEY": "",
-      "API_BASE_URL": "http://192.168.29.220:3000"
+      "SUPABASE_ANON_KEY": ""
     }
   }
 }

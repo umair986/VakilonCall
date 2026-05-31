@@ -1,13 +1,36 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
-import { Text, Button, Surface } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Icon, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import { LegalCard, PrimaryAction, Screen, StatusPill } from '../components/ui';
 
 type RoleOption = 'user' | 'lawyer';
+
+const roleOptions: Array<{
+  role: RoleOption;
+  icon: string;
+  title: string;
+  description: string;
+  points: string[];
+}> = [
+  {
+    role: 'user',
+    icon: 'shield-check-outline',
+    title: 'I need legal help',
+    description: 'Connect with verified lawyers for urgent legal situations.',
+    points: ['Token-based consultation', 'Rights library included', 'Emergency contact support'],
+  },
+  {
+    role: 'lawyer',
+    icon: 'account-tie-outline',
+    title: 'I am a lawyer',
+    description: 'Accept calls, support citizens, and manage payouts from one dashboard.',
+    points: ['Bar Council verification', 'Flexible online status', 'Consultation earnings'],
+  },
+];
 
 export default function RoleSelectScreen(): React.JSX.Element {
   const router = useRouter();
@@ -25,7 +48,6 @@ export default function RoleSelectScreen(): React.JSX.Element {
 
     try {
       const result = await api.setRole(selectedRole);
-
       if (result.success) {
         setUser({
           id: result.data.id,
@@ -40,12 +62,7 @@ export default function RoleSelectScreen(): React.JSX.Element {
           updated_at: new Date().toISOString(),
         });
         setIsNewUser(false);
-
-        if (selectedRole === 'lawyer') {
-          router.replace('/lawyer-register');
-        } else {
-          router.replace('/home');
-        }
+        router.replace(selectedRole === 'lawyer' ? '/lawyer-register' : '/home');
       } else {
         setError(result.error.message);
       }
@@ -57,152 +74,126 @@ export default function RoleSelectScreen(): React.JSX.Element {
   }, [selectedRole, router, setUser, setIsNewUser]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome to{'\n'}Vakil On Call</Text>
-          <Text style={styles.subtitle}>How would you like to use the app?</Text>
-        </View>
-
-        <View style={styles.cardsContainer}>
-          {/* User Card */}
-          <Pressable onPress={() => setSelectedRole('user')}>
-            <Surface
-              style={[
-                styles.roleCard,
-                selectedRole === 'user' && styles.roleCardSelected,
-              ]}
-              elevation={selectedRole === 'user' ? 3 : 1}
-            >
-              <Text style={styles.roleIcon}>🛡️</Text>
-              <Text style={styles.roleTitle}>I Need Legal Help</Text>
-              <Text style={styles.roleDescription}>
-                Get instant access to verified lawyers during emergencies, traffic stops,
-                FIR issues, and more.
-              </Text>
-              <View style={styles.roleBullets}>
-                <Text style={styles.bullet}>• Pay-per-call with tokens</Text>
-                <Text style={styles.bullet}>• Connected in under 60 seconds</Text>
-                <Text style={styles.bullet}>• Free rights information</Text>
-              </View>
-            </Surface>
-          </Pressable>
-
-          {/* Lawyer Card */}
-          <Pressable onPress={() => setSelectedRole('lawyer')}>
-            <Surface
-              style={[
-                styles.roleCard,
-                selectedRole === 'lawyer' && styles.roleCardSelected,
-              ]}
-              elevation={selectedRole === 'lawyer' ? 3 : 1}
-            >
-              <Text style={styles.roleIcon}>⚖️</Text>
-              <Text style={styles.roleTitle}>I Am a Lawyer</Text>
-              <Text style={styles.roleDescription}>
-                Earn money by helping citizens in legal emergencies. Build your practice
-                from day one.
-              </Text>
-              <View style={styles.roleBullets}>
-                <Text style={styles.bullet}>• Earn ₹32+ per consultation</Text>
-                <Text style={styles.bullet}>• Flexible hours — go online anytime</Text>
-                <Text style={styles.bullet}>• Build ratings and experience</Text>
-              </View>
-            </Surface>
-          </Pressable>
-        </View>
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <Button
-          mode="contained"
-          onPress={handleContinue}
-          loading={isSubmitting}
-          disabled={isSubmitting || !selectedRole}
-          style={styles.continueButton}
-          labelStyle={styles.continueButtonLabel}
-          contentStyle={styles.continueButtonContent}
-        >
-          Continue as {selectedRole === 'lawyer' ? 'Lawyer' : selectedRole === 'user' ? 'Citizen' : '...'}
-        </Button>
+    <Screen scroll>
+      <View style={styles.header}>
+        <Text style={styles.kicker}>Account setup</Text>
+        <Text style={styles.title}>Choose your role</Text>
+        <Text style={styles.subtitle}>
+          This decides the first dashboard you see. You can manage account
+          details later from profile.
+        </Text>
       </View>
-    </SafeAreaView>
+
+      <View style={styles.cardsContainer}>
+        {roleOptions.map((option) => {
+          const isSelected = selectedRole === option.role;
+          return (
+            <Pressable key={option.role} onPress={() => setSelectedRole(option.role)}>
+              <LegalCard style={[styles.roleCard, isSelected && styles.roleCardSelected]}>
+                <View style={styles.roleHeader}>
+                  <View style={styles.roleIcon}>
+                    <Icon source={option.icon} size={26} color={brandColors.text} />
+                  </View>
+                  {isSelected ? <StatusPill label="Selected" icon="check" /> : null}
+                </View>
+                <Text style={styles.roleTitle}>{option.title}</Text>
+                <Text style={styles.roleDescription}>{option.description}</Text>
+                <View style={styles.points}>
+                  {option.points.map((point) => (
+                    <View key={point} style={styles.pointRow}>
+                      <Icon source="minus" size={14} color={brandColors.textMuted} />
+                      <Text style={styles.pointText}>{point}</Text>
+                    </View>
+                  ))}
+                </View>
+              </LegalCard>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <PrimaryAction
+        onPress={handleContinue}
+        loading={isSubmitting}
+        disabled={isSubmitting || !selectedRole}
+      >
+        Continue as {selectedRole === 'lawyer' ? 'Lawyer' : selectedRole === 'user' ? 'Citizen' : 'Selected Role'}
+      </PrimaryAction>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: brandColors.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    justifyContent: 'center',
-  },
   header: {
     marginBottom: spacing.xl,
   },
-  title: {
-    ...typography.h1,
-    color: brandColors.white,
+  kicker: {
+    ...typography.section,
+    color: brandColors.textMuted,
     marginBottom: spacing.sm,
   },
+  title: {
+    ...typography.h1,
+    color: brandColors.text,
+  },
   subtitle: {
-    ...typography.body,
+    ...typography.bodySmall,
     color: brandColors.textSecondary,
+    marginTop: spacing.sm,
   },
   cardsContainer: {
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
   roleCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 16,
-    padding: spacing.lg,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    gap: spacing.sm,
   },
   roleCardSelected: {
-    borderColor: brandColors.primary,
-    backgroundColor: '#1a1a3e',
+    borderColor: brandColors.text,
+    backgroundColor: brandColors.surfaceElevated,
+  },
+  roleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   roleIcon: {
-    fontSize: 36,
-    marginBottom: spacing.sm,
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: brandColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: brandColors.surface,
   },
   roleTitle: {
     ...typography.h3,
-    color: brandColors.white,
-    marginBottom: spacing.xs,
+    color: brandColors.text,
   },
   roleDescription: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
-    marginBottom: spacing.md,
-    lineHeight: 20,
   },
-  roleBullets: {
-    gap: 4,
+  points: {
+    gap: spacing.xs,
+    marginTop: spacing.xs,
   },
-  bullet: {
+  pointRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  pointText: {
     ...typography.caption,
     color: brandColors.textMuted,
   },
   errorText: {
     ...typography.bodySmall,
-    color: brandColors.error,
+    color: brandColors.errorLight,
     textAlign: 'center',
     marginBottom: spacing.md,
-  },
-  continueButton: {
-    borderRadius: 12,
-  },
-  continueButtonLabel: {
-    ...typography.button,
-    color: brandColors.white,
-  },
-  continueButtonContent: {
-    paddingVertical: spacing.xs,
   },
 });

@@ -2,10 +2,35 @@ import { API_PATHS } from '@vakiloncall/shared';
 import type { IApiResponse } from '@vakiloncall/shared';
 import { useAuthStore } from '../stores/authStore';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const API_BASE_URL =
-  (Constants.expoConfig?.extra as Record<string, string> | undefined)?.API_BASE_URL ??
-  'http://localhost:3000';
+function getApiBaseUrl(): string {
+  // If explicitly configured via app.json extra, use that
+  const configuredUrl =
+    (Constants.expoConfig?.extra as Record<string, string> | undefined)?.API_BASE_URL;
+  if (configuredUrl) return configuredUrl;
+
+  // In development, derive the backend URL from Expo's dev server host.
+  // The debuggerHost is something like "192.168.0.103:8082" — we strip the
+  // metro port and replace it with the backend port (3000).
+  if (__DEV__) {
+    const debuggerHost =
+      Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
+    if (debuggerHost) {
+      const host = debuggerHost.split(':')[0];
+      return `http://${host}:3000`;
+    }
+  }
+
+  // Fallback (simulators, web, or production)
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3000'; // Android emulator special IP
+  }
+  return 'http://localhost:3000';
+}
+
+const API_BASE_URL = getApiBaseUrl();
+
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 

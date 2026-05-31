@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput, Button, Surface } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { Button, Icon, Text, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../services/api';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import { LegalCard, PrimaryAction, Screen } from '../components/ui';
 
 export default function LoginScreen(): React.JSX.Element {
   const router = useRouter();
@@ -16,9 +16,7 @@ export default function LoginScreen(): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatPhoneDisplay = useCallback((text: string): string => {
-    // Remove non-digits
     const digits = text.replace(/\D/g, '');
-    // Allow max 10 digits (without +91 prefix)
     return digits.slice(0, 10);
   }, []);
 
@@ -26,177 +24,165 @@ export default function LoginScreen(): React.JSX.Element {
     setError('');
 
     if (phone.length !== 10) {
-      setError('Please enter a valid 10-digit mobile number');
+      setError('Enter a valid 10-digit mobile number.');
       return;
     }
 
     const fullPhone = `+91${phone}`;
     setIsSubmitting(true);
+    setLoading(true);
 
     try {
       const result = await api.sendOtp(fullPhone);
-
       if (result.success) {
         router.push({ pathname: '/otp', params: { phone: fullPhone } });
       } else {
         setError(result.error.message);
       }
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError('Unable to send OTP. Please try again.');
     } finally {
       setIsSubmitting(false);
+      setLoading(false);
     }
-  }, [phone, router]);
+  }, [phone, router, setLoading]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <Screen centered contentStyle={styles.screen}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.content}>
-          {/* Logo / Brand Section */}
-          <View style={styles.brandSection}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>⚖️</Text>
+        <View style={styles.brandSection}>
+          <View style={styles.brandMark}>
+            <Icon source="scale-balance" color={brandColors.text} size={34} />
+          </View>
+          <Text style={styles.title}>Vakil On Call</Text>
+          <Text style={styles.subtitle}>
+            Immediate access to verified legal assistance across India.
+          </Text>
+        </View>
+
+        <LegalCard style={styles.formCard}>
+          <Text style={styles.sectionLabel}>Secure sign in</Text>
+          <Text style={styles.formTitle}>Enter mobile number</Text>
+
+          <View style={styles.phoneInputRow}>
+            <View style={styles.countryCode}>
+              <Text style={styles.countryCodeText}>+91</Text>
             </View>
-            <Text style={styles.title}>Vakil On Call</Text>
-            <Text style={styles.subtitle}>
-              Instant legal help when you need it most
-            </Text>
+            <TextInput
+              style={styles.phoneInput}
+              mode="outlined"
+              placeholder="9876543210"
+              value={phone}
+              onChangeText={(text) => setPhone(formatPhoneDisplay(text))}
+              keyboardType="phone-pad"
+              maxLength={10}
+              outlineColor={brandColors.border}
+              activeOutlineColor={brandColors.text}
+              textColor={brandColors.text}
+              placeholderTextColor={brandColors.textMuted}
+              autoFocus
+            />
           </View>
 
-          {/* Phone Input Section */}
-          <Surface style={styles.inputCard} elevation={2}>
-            <Text style={styles.inputLabel}>Enter your mobile number</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <View style={styles.phoneInputRow}>
-              <Surface style={styles.countryCode} elevation={0}>
-                <Text style={styles.countryCodeText}>🇮🇳 +91</Text>
-              </Surface>
-              <TextInput
-                style={styles.phoneInput}
-                mode="outlined"
-                placeholder="9876543210"
-                value={phone}
-                onChangeText={(text) => setPhone(formatPhoneDisplay(text))}
-                keyboardType="phone-pad"
-                maxLength={10}
-                outlineColor={brandColors.border}
-                activeOutlineColor={brandColors.primary}
-                textColor={brandColors.text}
-                placeholderTextColor={brandColors.textMuted}
-                autoFocus
-              />
-            </View>
-
-            {error ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : null}
-
-            <Button
-              mode="contained"
-              onPress={handleSendOtp}
-              loading={isSubmitting}
-              disabled={isSubmitting || phone.length !== 10}
-              style={styles.sendButton}
-              labelStyle={styles.sendButtonLabel}
-              contentStyle={styles.sendButtonContent}
-            >
-              {isSubmitting ? 'Sending OTP...' : 'Get OTP'}
-            </Button>
-
-            <Text style={styles.disclaimer}>
-              By continuing, you agree to our Terms of Service and Privacy Policy.
-              This platform facilitates connection with independent legal professionals.
-            </Text>
-          </Surface>
-
-          {/* Free Rights Link */}
-          <Button
-            mode="text"
-            textColor={brandColors.secondary}
-            onPress={() => router.push('/rights')}
-            style={styles.rightsButton}
-            icon="shield-check"
+          <PrimaryAction
+            onPress={handleSendOtp}
+            loading={isSubmitting}
+            disabled={isSubmitting || phone.length !== 10}
+            icon="login"
           >
-            Know Your Rights — Free, No Login Required
-          </Button>
-        </View>
+            {isSubmitting ? 'Sending OTP' : 'Continue'}
+          </PrimaryAction>
+
+          <Text style={styles.disclaimer}>
+            This platform connects you with independent legal professionals. By
+            continuing, you agree to the terms and privacy policy.
+          </Text>
+        </LegalCard>
+
+        <Button
+          mode="text"
+          textColor={brandColors.textSecondary}
+          onPress={() => router.push('/rights')}
+          style={styles.rightsButton}
+          icon="shield-check-outline"
+        >
+          Know Your Rights
+        </Button>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: brandColors.background,
+  screen: {
+    padding: spacing.lg,
   },
   keyboardView: {
     flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
     justifyContent: 'center',
   },
   brandSection: {
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: brandColors.primaryDark,
-    justifyContent: 'center',
+  brandMark: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: brandColors.borderLight,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
-  },
-  logoText: {
-    fontSize: 40,
+    backgroundColor: brandColors.surface,
   },
   title: {
     ...typography.h1,
-    color: brandColors.white,
+    color: brandColors.text,
     textAlign: 'center',
-    marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.body,
-    color: brandColors.textSecondary,
-    textAlign: 'center',
-  },
-  inputCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  inputLabel: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
-    marginBottom: spacing.md,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    maxWidth: 300,
+  },
+  formCard: {
+    gap: spacing.md,
+  },
+  sectionLabel: {
+    ...typography.section,
+    color: brandColors.textMuted,
+  },
+  formTitle: {
+    ...typography.h3,
+    color: brandColors.text,
   },
   phoneInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginBottom: spacing.md,
   },
   countryCode: {
-    backgroundColor: brandColors.surface,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    justifyContent: 'center',
+    minWidth: 62,
+    height: 56,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: brandColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: brandColors.surface,
   },
   countryCodeText: {
     ...typography.body,
     color: brandColors.text,
+    fontWeight: '700',
   },
   phoneInput: {
     flex: 1,
@@ -204,29 +190,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   errorText: {
-    ...typography.caption,
-    color: brandColors.error,
-    marginBottom: spacing.sm,
-  },
-  sendButton: {
-    borderRadius: 12,
-    marginTop: spacing.sm,
-  },
-  sendButtonLabel: {
-    ...typography.button,
-    color: brandColors.white,
-  },
-  sendButtonContent: {
-    paddingVertical: spacing.xs,
+    ...typography.bodySmall,
+    color: brandColors.errorLight,
   },
   disclaimer: {
     ...typography.caption,
     color: brandColors.textMuted,
     textAlign: 'center',
-    marginTop: spacing.md,
-    lineHeight: 18,
   },
   rightsButton: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
 });

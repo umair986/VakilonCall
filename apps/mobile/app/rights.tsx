@@ -1,66 +1,66 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Surface, IconButton } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
+import { Icon, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { brandColors, spacing, typography } from '../utils/theme';
+import { brandColors, radius, spacing, typography } from '../utils/theme';
+import { LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
 
 const RIGHTS = [
   {
     title: 'Right to Remain Silent',
     article: 'Article 20(3), Constitution of India',
     description:
-      'You cannot be compelled to be a witness against yourself. You have the right to refuse answering questions that may incriminate you. Say: "I exercise my right to remain silent under Article 20(3)."',
-    icon: '🤐',
+      'You cannot be compelled to be a witness against yourself. You may refuse to answer questions that could incriminate you.',
+    icon: 'account-voice-off-outline',
   },
   {
     title: 'Right to Know Grounds of Arrest',
-    article: 'Article 22(1) + DK Basu Guidelines',
+    article: 'Article 22(1) and DK Basu Guidelines',
     description:
-      'Police MUST inform you of the reason for your arrest. You must be given an arrest memo with the time, date, and reason. If they refuse, it is a violation of your constitutional rights.',
-    icon: '📋',
+      'Police must inform you of the reason for arrest and provide an arrest memo with time, date, and reason.',
+    icon: 'file-document-alert-outline',
   },
   {
     title: 'Right to Legal Counsel',
     article: 'Article 22(1), Constitution of India',
     description:
-      'You have the right to consult and be defended by a lawyer of your choice. Police cannot deny you access to a lawyer. If you cannot afford one, you are entitled to free legal aid under NALSA.',
-    icon: '⚖️',
+      'You have the right to consult and be defended by a lawyer of your choice. Free legal aid is available when eligible.',
+    icon: 'scale-balance',
   },
   {
     title: 'Right to Inform Family',
     article: 'DK Basu v. State of WB (1997)',
     description:
-      'Police MUST inform your family or friend about your arrest. You can request that a specific person be notified. This is mandatory under the DK Basu Supreme Court guidelines.',
-    icon: '👨‍👩‍👧',
+      'Police must inform your family or a friend about your arrest when requested. This is a mandatory safeguard.',
+    icon: 'account-group-outline',
   },
   {
     title: 'Right to Free Copy of FIR',
-    article: 'Section 173 BNSS (formerly 154 CrPC)',
+    article: 'Section 173 BNSS, formerly 154 CrPC',
     description:
-      'You are entitled to a free copy of the FIR. If police refuse to register an FIR, it is illegal under the Lalita Kumari v. Govt. of UP (2014) Supreme Court ruling.',
-    icon: '📄',
+      'You are entitled to a free copy of the FIR. Refusal to register an FIR may be challenged.',
+    icon: 'file-document-outline',
   },
   {
     title: 'Right Against Illegal Detention',
-    article: 'Article 21 + Section 35 BNSS',
+    article: 'Article 21 and Section 35 BNSS',
     description:
-      'For offences punishable by less than 7 years, police must serve notice first — NOT arrest directly (Section 35 BNSS, codifying Arnesh Kumar principle). Demand they serve notice.',
-    icon: '🔓',
+      'For many offences punishable by less than 7 years, police must serve notice before arrest unless legal conditions are met.',
+    icon: 'lock-open-variant-outline',
   },
   {
     title: 'Right to Medical Examination',
     article: 'DK Basu Guidelines',
     description:
-      'You must be medically examined within 48 hours of arrest. This protects against custodial torture. Request it loudly and on record.',
-    icon: '🏥',
+      'A medical examination within the required period protects against custodial violence and creates a record.',
+    icon: 'medical-bag',
   },
   {
-    title: 'Right to be Produced Before Magistrate',
-    article: 'Article 22(2) + BNSS',
+    title: 'Right to Magistrate Production',
+    article: 'Article 22(2) and BNSS',
     description:
-      'You must be produced before a magistrate within 24 hours of arrest. Extended detention beyond this without judicial authorization is illegal.',
-    icon: '🏛️',
+      'You must be produced before a magistrate within 24 hours of arrest, excluding travel time.',
+    icon: 'bank-outline',
   },
 ];
 
@@ -68,148 +68,111 @@ export default function RightsScreen(): React.JSX.Element {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <IconButton
-          icon="arrow-left"
-          iconColor={brandColors.text}
-          size={24}
-          onPress={() => router.back()}
-        />
-        <Text style={styles.headerTitle}>Your Constitutional Rights</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Surface style={styles.banner} elevation={2}>
-          <Text style={styles.bannerIcon}>🇮🇳</Text>
+    <>
+      <ScreenHeader title="Rights Library" subtitle="Constitutional reference" back />
+      <Screen scroll contentStyle={styles.scrollContent}>
+        <LegalCard style={styles.banner}>
+          <StatusPill label="Always free" icon="shield-check-outline" />
           <Text style={styles.bannerTitle}>Know Your Rights</Text>
           <Text style={styles.bannerSubtitle}>
-            These rights are guaranteed by the Constitution of India, DK Basu Supreme Court
-            guidelines, and BNSS 2024. No tokens required — this information is always free.
+            A concise legal reference for police interaction, arrest safeguards,
+            FIR access, and counsel rights in India.
           </Text>
-        </Surface>
+        </LegalCard>
 
-        {RIGHTS.map((right, index) => (
-          <Surface key={index} style={styles.rightCard} elevation={1}>
-            <View style={styles.rightHeader}>
-              <Text style={styles.rightIcon}>{right.icon}</Text>
-              <View style={styles.rightTitleContainer}>
-                <Text style={styles.rightTitle}>{right.title}</Text>
-                <Text style={styles.rightArticle}>{right.article}</Text>
+        <View style={styles.rightsList}>
+          {RIGHTS.map((right) => (
+            <LegalCard key={right.title} style={styles.rightCard}>
+              <View style={styles.rightHeader}>
+                <View style={styles.rightIcon}>
+                  <Icon source={right.icon} color={brandColors.textSecondary} size={22} />
+                </View>
+                <View style={styles.rightTitleContainer}>
+                  <Text style={styles.rightTitle}>{right.title}</Text>
+                  <Text style={styles.rightArticle}>{right.article}</Text>
+                </View>
               </View>
-            </View>
-            <Text style={styles.rightDescription}>{right.description}</Text>
-          </Surface>
-        ))}
+              <Text style={styles.rightDescription}>{right.description}</Text>
+            </LegalCard>
+          ))}
+        </View>
 
-        <Surface style={styles.emergencyCard} elevation={2}>
-          <Text style={styles.emergencyTitle}>🚨 In an Emergency?</Text>
+        <LegalCard variant="danger" style={styles.emergencyCard}>
+          <Text style={styles.emergencyTitle}>Facing an urgent situation?</Text>
           <Text style={styles.emergencyText}>
-            If you are facing a legal emergency right now, go back and tap "Get Legal Help Now"
-            to connect with a verified lawyer in under 60 seconds.
+            Start a legal assistance request to connect with an available lawyer.
           </Text>
-        </Surface>
-      </ScrollView>
-    </SafeAreaView>
+          <PrimaryAction onPress={() => router.push('/scenario-select')} icon="phone-in-talk-outline">
+            Request Legal Assistance
+          </PrimaryAction>
+        </LegalCard>
+      </Screen>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: brandColors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  headerTitle: {
-    ...typography.h3,
-    color: brandColors.white,
-  },
   scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
   },
   banner: {
-    backgroundColor: brandColors.primaryDark,
-    borderRadius: 16,
-    padding: spacing.lg,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  bannerIcon: {
-    fontSize: 40,
-    marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   bannerTitle: {
     ...typography.h2,
-    color: brandColors.white,
-    marginBottom: spacing.sm,
+    color: brandColors.text,
   },
   bannerSubtitle: {
     ...typography.bodySmall,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    lineHeight: 20,
+    color: brandColors.textSecondary,
+  },
+  rightsList: {
+    gap: spacing.md,
   },
   rightCard: {
-    backgroundColor: brandColors.surfaceCard,
-    borderRadius: 14,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
+    gap: spacing.md,
   },
   rightHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
-    marginBottom: spacing.sm,
   },
   rightIcon: {
-    fontSize: 28,
-    marginTop: 2,
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: brandColors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: brandColors.surface,
   },
   rightTitleContainer: {
     flex: 1,
   },
   rightTitle: {
     ...typography.body,
-    color: brandColors.white,
-    fontWeight: '600',
+    color: brandColors.text,
+    fontWeight: '700',
   },
   rightArticle: {
     ...typography.caption,
-    color: brandColors.primary,
-    marginTop: 2,
+    color: brandColors.textMuted,
+    marginTop: 3,
   },
   rightDescription: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
-    lineHeight: 22,
-    paddingLeft: 44,
   },
   emergencyCard: {
-    backgroundColor: '#2D1B1B',
-    borderRadius: 14,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: brandColors.error,
+    gap: spacing.md,
   },
   emergencyTitle: {
     ...typography.h3,
-    color: brandColors.error,
-    marginBottom: spacing.sm,
+    color: brandColors.text,
   },
   emergencyText: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
-    lineHeight: 22,
   },
 });

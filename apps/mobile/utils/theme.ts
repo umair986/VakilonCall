@@ -1,55 +1,62 @@
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 import type { MD3Theme } from 'react-native-paper';
 
-// VakilOnCall brand colors — premium dark legal-tech aesthetic
-const brandColors = {
-  primary: '#6C63FF',        // Royal indigo — trust, authority
-  primaryLight: '#8B83FF',
-  primaryDark: '#4F46E5',
-  secondary: '#10B981',      // Emerald — safety, growth
-  secondaryLight: '#34D399',
-  secondaryDark: '#059669',
-  accent: '#F59E0B',         // Amber — urgency, attention (SOS)
-  accentLight: '#FBBF24',
-  accentDark: '#D97706',
-  error: '#EF4444',
-  errorLight: '#FCA5A5',
-  success: '#10B981',
-  warning: '#F59E0B',
-  info: '#3B82F6',
-  surface: '#0F172A',        // Deep navy — professional dark mode
-  surfaceLight: '#1E293B',
-  surfaceCard: '#1E293B',
-  background: '#0A1628',     // Darkest navy — main bg
-  backgroundLight: '#F8FAFC',
-  text: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted: '#64748B',
-  border: '#334155',
-  borderLight: '#475569',
+export const brandColors = {
+  background: '#080808',
+  surface: '#141414',
+  surfaceCard: '#1C1C1C',
+  surfaceElevated: '#242424',
+  text: '#F7F7F2',
+  textSecondary: '#B8B8B2',
+  textMuted: '#7E7E78',
+  border: '#2E2E2E',
+  borderLight: '#3A3A3A',
+  disabled: '#6B6B66',
+  primary: '#F7F7F2',
+  primaryLight: '#FFFFFF',
+  primaryDark: '#D8D8D2',
+  secondary: '#B8B8B2',
+  secondaryLight: '#D8D8D2',
+  secondaryDark: '#8F8F88',
+  accent: '#D8D8D2',
+  accentLight: '#F7F7F2',
+  accentDark: '#8F8F88',
+  success: '#16794C',
+  successLight: '#58A979',
+  warning: '#B8860B',
+  error: '#B42318',
+  errorLight: '#E06B62',
+  info: '#8A8A84',
   white: '#FFFFFF',
   black: '#000000',
-};
+} as const;
+
+export const radius = {
+  xs: 4,
+  sm: 6,
+  md: 8,
+  lg: 10,
+} as const;
 
 export const darkTheme: MD3Theme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
     primary: brandColors.primary,
-    primaryContainer: brandColors.primaryDark,
+    primaryContainer: brandColors.surfaceElevated,
     secondary: brandColors.secondary,
-    secondaryContainer: brandColors.secondaryDark,
+    secondaryContainer: brandColors.surface,
     tertiary: brandColors.accent,
-    tertiaryContainer: brandColors.accentDark,
+    tertiaryContainer: brandColors.surfaceElevated,
     surface: brandColors.surface,
-    surfaceVariant: brandColors.surfaceLight,
+    surfaceVariant: brandColors.surfaceCard,
     background: brandColors.background,
     error: brandColors.error,
-    errorContainer: brandColors.errorLight,
-    onPrimary: brandColors.white,
-    onPrimaryContainer: brandColors.white,
-    onSecondary: brandColors.white,
-    onSecondaryContainer: brandColors.white,
+    errorContainer: '#32110F',
+    onPrimary: brandColors.black,
+    onPrimaryContainer: brandColors.text,
+    onSecondary: brandColors.black,
+    onSecondaryContainer: brandColors.text,
     onSurface: brandColors.text,
     onSurfaceVariant: brandColors.textSecondary,
     onBackground: brandColors.text,
@@ -57,39 +64,38 @@ export const darkTheme: MD3Theme = {
     outline: brandColors.border,
     outlineVariant: brandColors.borderLight,
   },
-  roundness: 12,
+  roundness: radius.md,
 };
 
 export const lightTheme: MD3Theme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    primary: brandColors.primary,
-    primaryContainer: '#EEF2FF',
-    secondary: brandColors.secondary,
-    secondaryContainer: '#D1FAE5',
-    tertiary: brandColors.accent,
-    tertiaryContainer: '#FEF3C7',
+    primary: '#111111',
+    primaryContainer: '#E8E8E2',
+    secondary: '#343430',
+    secondaryContainer: '#EFEFEA',
+    tertiary: '#4B4B46',
+    tertiaryContainer: '#F4F4EF',
     surface: '#FFFFFF',
-    surfaceVariant: '#F1F5F9',
-    background: '#F8FAFC',
+    surfaceVariant: '#F4F4EF',
+    background: '#FAFAF6',
     error: brandColors.error,
-    errorContainer: '#FEE2E2',
-    onPrimary: brandColors.white,
-    onPrimaryContainer: brandColors.primaryDark,
-    onSecondary: brandColors.white,
-    onSecondaryContainer: brandColors.secondaryDark,
-    onSurface: '#0F172A',
-    onSurfaceVariant: '#475569',
-    onBackground: '#0F172A',
-    onError: brandColors.white,
-    outline: '#CBD5E1',
-    outlineVariant: '#E2E8F0',
+    errorContainer: '#FDE9E7',
+    onPrimary: '#FFFFFF',
+    onPrimaryContainer: '#111111',
+    onSecondary: '#FFFFFF',
+    onSecondaryContainer: '#111111',
+    onSurface: '#111111',
+    onSurfaceVariant: '#4B4B46',
+    onBackground: '#111111',
+    onError: '#FFFFFF',
+    outline: '#D5D5CE',
+    outlineVariant: '#E5E5DE',
   },
-  roundness: 12,
+  roundness: radius.md,
 };
 
-// Spacing scale (used with StyleSheet)
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -99,15 +105,19 @@ export const spacing = {
   xxl: 48,
 } as const;
 
-// Typography sizes
 export const typography = {
-  h1: { fontSize: 32, fontWeight: '700' as const, lineHeight: 40 },
+  h1: { fontSize: 28, fontWeight: '700' as const, lineHeight: 36 },
   h2: { fontSize: 24, fontWeight: '700' as const, lineHeight: 32 },
-  h3: { fontSize: 20, fontWeight: '600' as const, lineHeight: 28 },
+  h3: { fontSize: 18, fontWeight: '600' as const, lineHeight: 26 },
   body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 24 },
-  bodySmall: { fontSize: 14, fontWeight: '400' as const, lineHeight: 20 },
+  bodySmall: { fontSize: 14, fontWeight: '400' as const, lineHeight: 21 },
   caption: { fontSize: 12, fontWeight: '400' as const, lineHeight: 16 },
-  button: { fontSize: 16, fontWeight: '600' as const, lineHeight: 24 },
+  section: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    lineHeight: 16,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase' as const,
+  },
+  button: { fontSize: 15, fontWeight: '700' as const, lineHeight: 22 },
 } as const;
-
-export { brandColors };
