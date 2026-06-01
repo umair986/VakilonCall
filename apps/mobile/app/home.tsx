@@ -1,20 +1,23 @@
 import React, { useCallback, useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Icon, IconButton, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { api } from '../services/api';
 import { SCENARIOS } from '@vakiloncall/shared';
-import { brandColors, radius, spacing, typography } from '../utils/theme';
-import {
-  ActionRow,
-  LegalCard,
-  MetricTile,
-  PrimaryAction,
-  Screen,
-  StatusPill,
-} from '../components/ui';
+import { radius, spacing, typography } from '../utils/theme';
+
+const palette = {
+  paper: '#FBFAF6',
+  white: '#FFFFFF',
+  ink: '#0B0B0B',
+  black: '#000000',
+  muted: '#62615C',
+  soft: '#F0EDE5',
+  line: '#D8D4C9',
+  danger: '#B42318',
+};
 
 export default function HomeScreen(): React.JSX.Element {
   const router = useRouter();
@@ -45,158 +48,267 @@ export default function HomeScreen(): React.JSX.Element {
   }, [balance, router]);
 
   return (
-    <Screen scroll>
-      <View style={styles.topBar}>
-        <View>
-          <Text style={styles.kicker}>Citizen dashboard</Text>
-          <Text style={styles.title}>{user?.full_name ?? 'Legal assistance'}</Text>
-        </View>
-        <IconButton
-          icon="account-circle-outline"
-          iconColor={brandColors.textSecondary}
-          size={28}
-          onPress={() => router.push('/profile')}
-          style={styles.profileButton}
-        />
-      </View>
-
-      <View style={styles.metricsRow}>
-        <MetricTile
-          label="Tokens"
-          value={balance}
-          supportingText={balance === 1 ? '1 consultation' : `${balance} consultations`}
-        />
-        <MetricTile label="Response" value="<60s" supportingText="Typical match time" />
-      </View>
-
-      <LegalCard style={styles.commandCard}>
-        <View style={styles.commandHeader}>
-          <View style={styles.commandIcon}>
-            <Icon source="phone-in-talk-outline" color={brandColors.black} size={24} />
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.letterhead}>
+          <View>
+            <Text style={styles.overline}>Vakil On Call</Text>
+            <Text style={styles.title}>{user?.full_name ?? 'Legal desk'}</Text>
           </View>
-          <StatusPill
-            label={balance > 0 ? 'Ready' : 'Token required'}
-            tone={balance > 0 ? 'success' : 'warning'}
+          <IconButton
+            icon="account-circle-outline"
+            iconColor={palette.ink}
+            size={28}
+            onPress={() => router.push('/profile')}
+            style={styles.profileButton}
           />
         </View>
-        <Text style={styles.commandTitle}>Request legal assistance</Text>
-        <Text style={styles.commandCopy}>
-          Select your situation and connect with an available verified lawyer.
-        </Text>
-        <PrimaryAction
-          onPress={handleGetHelp}
-          icon={balance > 0 ? 'phone-in-talk-outline' : 'plus'}
-        >
-          {balance > 0 ? 'Start Request' : 'Buy Tokens'}
-        </PrimaryAction>
-      </LegalCard>
 
-      <View style={styles.section}>
+        <View style={styles.commandPanel}>
+          <View style={styles.commandTop}>
+            <View style={styles.blackSeal}>
+              <Icon source="phone-in-talk-outline" color={palette.white} size={26} />
+            </View>
+            <View style={styles.caseTag}>
+              <Text style={styles.caseTagText}>{balance > 0 ? 'Ready to file' : 'Token required'}</Text>
+            </View>
+          </View>
+          <Text style={styles.commandTitle}>Start a legal assistance request</Text>
+          <Text style={styles.commandText}>
+            Choose the issue, open a request, and connect with a verified lawyer
+            when one is available.
+          </Text>
+          <Button
+            mode="contained"
+            onPress={handleGetHelp}
+            buttonColor={palette.white}
+            textColor={palette.black}
+            icon={balance > 0 ? 'phone-in-talk-outline' : 'plus'}
+            style={styles.commandButton}
+            contentStyle={styles.buttonContent}
+            labelStyle={styles.buttonLabel}
+          >
+            {balance > 0 ? 'Request Lawyer' : 'Buy Tokens'}
+          </Button>
+        </View>
+
+        <View style={styles.docketRow}>
+          <View style={styles.docketCard}>
+            <Text style={styles.docketLabel}>Tokens</Text>
+            <Text style={styles.docketValue}>{balance}</Text>
+            <Text style={styles.docketMeta}>
+              {balance === 1 ? '1 consultation available' : `${balance} consultations available`}
+            </Text>
+          </View>
+          <View style={styles.docketCard}>
+            <Text style={styles.docketLabel}>Target response</Text>
+            <Text style={styles.docketValue}>60s</Text>
+            <Text style={styles.docketMeta}>Typical lawyer matching window</Text>
+          </View>
+        </View>
+
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Common situations</Text>
-          <Button mode="text" textColor={brandColors.textSecondary} onPress={() => router.push('/scenario-select')}>
+          <Text style={styles.sectionTitle}>Issue intake</Text>
+          <Button mode="text" textColor={palette.black} onPress={() => router.push('/scenario-select')}>
             View all
           </Button>
         </View>
-        <View style={styles.scenarioList}>
-          {SCENARIOS.slice(0, 5).map((scenario) => (
-            <LegalCard key={scenario.type} variant="outlined" style={styles.scenarioRow}>
-              <Icon source={scenario.icon || 'gavel'} color={brandColors.textSecondary} size={20} />
-              <View style={styles.scenarioCopy}>
-                <Text style={styles.scenarioLabel}>{scenario.label}</Text>
-                <Text style={styles.scenarioDescription} numberOfLines={1}>
+
+        <View style={styles.issueList}>
+          {SCENARIOS.slice(0, 5).map((scenario, index) => (
+            <View key={scenario.type} style={styles.issueRow}>
+              <View style={styles.issueIndex}>
+                <Text style={styles.issueIndexText}>{String(index + 1).padStart(2, '0')}</Text>
+              </View>
+              <View style={styles.issueCopy}>
+                <Text style={styles.issueTitle}>{scenario.label}</Text>
+                <Text style={styles.issueDescription} numberOfLines={2}>
                   {scenario.description}
                 </Text>
               </View>
-            </LegalCard>
+              <Icon source={scenario.icon || 'gavel'} color={palette.muted} size={20} />
+            </View>
           ))}
         </View>
-      </View>
 
-      <LegalCard style={styles.actionsCard}>
-        <Text style={styles.sectionTitle}>Legal readiness</Text>
-        <ActionRow
-          icon="shield-check-outline"
-          title="Know Your Rights"
-          subtitle="Free constitutional rights reference"
-          onPress={() => router.push('/rights')}
-        />
-        <View style={styles.divider} />
-        <ActionRow
-          icon="alert-outline"
-          title="Emergency Contacts"
-          subtitle="Add trusted contacts for location alerts"
-          tone="danger"
-          onPress={() => router.push('/sos-contacts')}
-        />
-        <View style={styles.divider} />
-        <ActionRow
-          icon="wallet-outline"
-          title="Token Store"
-          subtitle="Manage consultation balance"
-          onPress={() => router.push('/token-store')}
-        />
-      </LegalCard>
-    </Screen>
+        <View style={styles.readinessPanel}>
+          <Text style={styles.sectionTitle}>Readiness</Text>
+          <ReadinessRow
+            icon="shield-check-outline"
+            title="Know Your Rights"
+            subtitle="Free legal reference before you speak"
+            onPress={() => router.push('/rights')}
+          />
+          <View style={styles.divider} />
+          <ReadinessRow
+            icon="alert-outline"
+            title="Emergency Contacts"
+            subtitle="Prepare location alerts for trusted contacts"
+            onPress={() => router.push('/sos-contacts')}
+            danger
+          />
+          <View style={styles.divider} />
+          <ReadinessRow
+            icon="wallet-outline"
+            title="Token Store"
+            subtitle="Keep consultation access ready"
+            onPress={() => router.push('/token-store')}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function ReadinessRow({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  danger = false,
+}: {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  danger?: boolean;
+}): React.JSX.Element {
+  return (
+    <Button
+      mode="text"
+      onPress={onPress}
+      textColor={palette.ink}
+      contentStyle={styles.readinessContent}
+      style={styles.readinessButton}
+    >
+      <View style={styles.readinessInner}>
+        <View style={[styles.readinessIcon, danger && styles.readinessIconDanger]}>
+          <Icon source={icon} color={danger ? palette.danger : palette.ink} size={20} />
+        </View>
+        <View style={styles.readinessCopy}>
+          <Text style={styles.readinessTitle}>{title}</Text>
+          <Text style={styles.readinessSubtitle}>{subtitle}</Text>
+        </View>
+        <Icon source="chevron-right" color={palette.muted} size={20} />
+      </View>
+    </Button>
   );
 }
 
 const styles = StyleSheet.create({
-  topBar: {
+  container: {
+    flex: 1,
+    backgroundColor: palette.paper,
+  },
+  content: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  letterhead: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.lg,
   },
-  kicker: {
+  overline: {
     ...typography.section,
-    color: brandColors.textMuted,
+    color: palette.muted,
     marginBottom: spacing.xs,
   },
   title: {
     ...typography.h1,
-    color: brandColors.text,
+    color: palette.ink,
   },
   profileButton: {
     borderWidth: 1,
-    borderColor: brandColors.border,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    backgroundColor: palette.white,
   },
-  metricsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  commandCard: {
-    gap: spacing.md,
+  commandPanel: {
+    backgroundColor: palette.black,
+    borderRadius: radius.md,
+    padding: spacing.lg,
     marginBottom: spacing.lg,
-    backgroundColor: brandColors.text,
   },
-  commandHeader: {
+  commandTop: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
-  commandIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
+  blackSeal: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: '#363636',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: brandColors.white,
+  },
+  caseTag: {
     borderWidth: 1,
-    borderColor: '#D5D5CE',
+    borderColor: '#3E3E3E',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  caseTagText: {
+    ...typography.caption,
+    color: palette.white,
+    fontWeight: '800',
   },
   commandTitle: {
-    ...typography.h2,
-    color: brandColors.black,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800',
+    color: palette.white,
   },
-  commandCopy: {
+  commandText: {
     ...typography.bodySmall,
-    color: '#3F3F3A',
-  },
-  section: {
+    color: '#C8C8C2',
+    marginTop: spacing.sm,
     marginBottom: spacing.lg,
+  },
+  commandButton: {
+    borderRadius: radius.sm,
+  },
+  buttonContent: {
+    minHeight: 50,
+  },
+  buttonLabel: {
+    ...typography.button,
+  },
+  docketRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  docketCard: {
+    flex: 1,
+    backgroundColor: palette.white,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    minHeight: 118,
+  },
+  docketLabel: {
+    ...typography.section,
+    color: palette.muted,
+  },
+  docketValue: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '800',
+    color: palette.ink,
+    marginTop: spacing.sm,
+    fontVariant: ['tabular-nums'],
+  },
+  docketMeta: {
+    ...typography.caption,
+    color: palette.muted,
+    marginTop: spacing.xs,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -206,35 +318,101 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.section,
-    color: brandColors.textMuted,
+    color: palette.muted,
   },
-  scenarioList: {
-    gap: spacing.sm,
+  issueList: {
+    backgroundColor: palette.white,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.xl,
   },
-  scenarioRow: {
+  issueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.line,
   },
-  scenarioCopy: {
+  issueIndex: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: palette.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  issueIndexText: {
+    ...typography.caption,
+    color: palette.ink,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  issueCopy: {
     flex: 1,
   },
-  scenarioLabel: {
+  issueTitle: {
     ...typography.bodySmall,
-    color: brandColors.text,
-    fontWeight: '700',
+    color: palette.ink,
+    fontWeight: '800',
   },
-  scenarioDescription: {
+  issueDescription: {
     ...typography.caption,
-    color: brandColors.textMuted,
+    color: palette.muted,
     marginTop: 2,
   },
-  actionsCard: {
-    gap: spacing.sm,
+  readinessPanel: {
+    backgroundColor: palette.white,
+    borderWidth: 1,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  readinessButton: {
+    borderRadius: radius.sm,
+  },
+  readinessContent: {
+    paddingHorizontal: 0,
+    paddingVertical: spacing.xs,
+  },
+  readinessInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  readinessIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: palette.line,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.paper,
+  },
+  readinessIconDanger: {
+    borderColor: '#E4B7B3',
+    backgroundColor: '#FFF3F2',
+  },
+  readinessCopy: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  readinessTitle: {
+    ...typography.bodySmall,
+    color: palette.ink,
+    fontWeight: '800',
+  },
+  readinessSubtitle: {
+    ...typography.caption,
+    color: palette.muted,
+    marginTop: 2,
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: brandColors.border,
+    height: 1,
+    backgroundColor: palette.line,
   },
 });
