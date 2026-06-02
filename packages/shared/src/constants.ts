@@ -186,6 +186,8 @@ export const API_PATHS = {
     PACKS: `${API_BASE_PATH}/tokens/packs`,
     CREATE_ORDER: `${API_BASE_PATH}/tokens/create-order`,
     VERIFY_PAYMENT: `${API_BASE_PATH}/tokens/verify-payment`,
+    TRANSACTIONS: `${API_BASE_PATH}/tokens/transactions`,
+    DEV_CREDIT: `${API_BASE_PATH}/tokens/dev-credit`,
   },
   CALLS: {
     REQUEST: `${API_BASE_PATH}/calls/request`,

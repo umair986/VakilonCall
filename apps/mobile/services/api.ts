@@ -104,6 +104,22 @@ export const api = {
       'POST', API_PATHS.TOKENS.VERIFY_PAYMENT, data
     ),
 
+  getTokenTransactions: (page = 1, limit = 20) =>
+    request<
+      Array<{
+        id: string;
+        type: 'purchase' | 'deduct' | 'refund' | 'promo';
+        tokens: number;
+        created_at: string;
+        metadata: Record<string, unknown>;
+      }>
+    >('GET', `${API_PATHS.TOKENS.TRANSACTIONS}?page=${page}&limit=${limit}`),
+
+  devCreditTokens: (pack_id: string) =>
+    request<{ token_balance: number; tokens_added: number; transaction_id: string }>(
+      'POST', API_PATHS.TOKENS.DEV_CREDIT, { pack_id }
+    ),
+
   // Lawyer
   getLawyerProfile: () =>
     request<Record<string, unknown>>('GET', API_PATHS.LAWYER.PROFILE),
@@ -153,4 +169,35 @@ export const api = {
     request<{ message: string }>(
       'POST', API_PATHS.CALLS.REPORT(callId), { reason }
     ),
+
+  // SOS
+  getSosContacts: () =>
+    request<
+      Array<{
+        id: string;
+        name: string;
+        phone: string;
+        relation: string | null;
+        priority: number;
+      }>
+    >('GET', API_PATHS.SOS.CONTACTS),
+
+  setSosContacts: (contacts: Array<{ name: string; phone: string; relation?: string }>) =>
+    request<
+      Array<{
+        id: string;
+        name: string;
+        phone: string;
+        relation: string | null;
+        priority: number;
+      }>
+    >('PUT', API_PATHS.SOS.CONTACTS, { contacts }),
+
+  fireSos: (data: { latitude: number; longitude: number; officer_name?: string; officer_badge?: string }) =>
+    request<{
+      id: string;
+      contacts_notified: number;
+      contacts: Array<{ name: string; phone: string; sms_status: string }>;
+      message: string;
+    }>('POST', API_PATHS.SOS.FIRE, data),
 };

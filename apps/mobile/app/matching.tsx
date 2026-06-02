@@ -8,9 +8,10 @@ import {
   onCallMatched,
   onNoLawyers,
   onCallEnded,
-  disconnectSocket,
 } from '../services/socket';
+import { api } from '../services/api';
 import { SCENARIOS } from '@vakiloncall/shared';
+import { getCurrentLocation } from '../utils/location';
 import { brandColors, spacing, typography } from '../utils/theme';
 
 export default function MatchingScreen(): React.JSX.Element {
@@ -21,11 +22,19 @@ export default function MatchingScreen(): React.JSX.Element {
   const [lawyerName, setLawyerName] = useState('');
   const [lawyerRating, setLawyerRating] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [error, setError] = useState('');
+  const [activeCallId, setActiveCallId] = useState(params.callSessionId ?? '');
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const activeCallIdRef = useRef(activeCallId);
 
   const scenario = SCENARIOS.find((s) => s.type === params.scenario);
+  const scenarioLabel = scenario?.label ?? 'Legal Help';
+
+  useEffect(() => {
+    activeCallIdRef.current = activeCallId;
+  }, [activeCallId]);
 
   // Pulse animation for the searching indicator
   useEffect(() => {
@@ -81,35 +90,82 @@ export default function MatchingScreen(): React.JSX.Element {
     const socket = connectSocket();
 
     onCallMatched((data) => {
+      if (activeCallIdRef.current && data.call_session_id !== activeCallIdRef.current) return;
       setStatus('matched');
       setLawyerName(data.lawyer_name);
       setLawyerRating(data.lawyer_rating);
-      // In Sprint 4, navigate to the in-call screen
+      router.replace({
+        pathname: '/call',
+        params: {
+          callSessionId: data.call_session_id,
+          lawyerName: data.lawyer_name,
+          scenario: scenarioLabel,
+        },
+      });
     });
 
-    onNoLawyers(() => {
+    onNoLawyers((data) => {
+      if (activeCallIdRef.current && data.call_session_id !== activeCallIdRef.current) return;
       setStatus('no_lawyers');
     });
 
-    onCallEnded(() => {
+    onCallEnded((data) => {
+      if (activeCallIdRef.current && data.call_session_id !== activeCallIdRef.current) return;
       router.back();
     });
 
     return () => {
       // Don't disconnect socket here — it's managed globally
     };
-  }, [router]);
+  }, [router, scenarioLabel]);
 
   const handleCancel = useCallback(() => {
-    // TODO: Call api to cancel the call session
-    router.back();
-  }, [router]);
+    if (!activeCallId) {
+      router.back();
+      return;
+    }
+
+    setError('');
+    api.cancelCall(activeCallId)
+      .then((result) => {
+        if (result.success) {
+          router.back();
+        } else {
+          setError(result.error.message);
+        }
+      })
+      .catch(() => {
+        setError('Failed to cancel the request. Please try again.');
+      });
+  }, [router, activeCallId]);
 
   const handleRetry = useCallback(() => {
     setStatus('searching');
     setElapsedSec(0);
-    // TODO: Create a new call request via API
-  }, []);
+    setError('');
+
+    const scenarioType = params.scenario ?? 'other';
+    getCurrentLocation()
+      .then((location) =>
+        api.requestCall(
+          scenarioType,
+          location?.latitude,
+          location?.longitude
+        )
+      )
+      .then((result) => {
+        if (result.success) {
+          setActiveCallId(result.data.call_session_id);
+        } else {
+          setError(result.error.message);
+          setStatus('no_lawyers');
+        }
+      })
+      .catch(() => {
+        setError('Failed to retry. Please try again.');
+        setStatus('no_lawyers');
+      });
+  }, [params.scenario]);
 
   const rotateInterp = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -167,6 +223,7 @@ export default function MatchingScreen(): React.JSX.Element {
             >
               Cancel Request
             </Button>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </>
         ) : status === 'matched' ? (
           <>
@@ -214,6 +271,7 @@ export default function MatchingScreen(): React.JSX.Element {
             >
               Try Again
             </Button>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <Button
               mode="text"
@@ -314,6 +372,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderColor: brandColors.error,
     minWidth: 200,
+  },
+  errorText: {
+    ...typography.caption,
+    color: brandColors.error,
+    textAlign: 'center',
+    marginTop: spacing.md,
   },
   matchedIconContainer: {
     width: 120,

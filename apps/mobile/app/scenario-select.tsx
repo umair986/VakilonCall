@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { Text, Surface, IconButton, Button, ActivityIndicator } from 'react-native-paper';
+import { Text, Surface, IconButton, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { SCENARIOS } from '@vakiloncall/shared';
 import { useTokenStore } from '../stores/tokenStore';
 import { api } from '../services/api';
+import { getCurrentLocation } from '../utils/location';
 import { brandColors, spacing, typography } from '../utils/theme';
 
 // Map scenario icon names to emojis for cross-platform support
@@ -27,6 +28,7 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
 
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [error, setError] = useState('');
 
   const handleRequestHelp = useCallback(async (): Promise<void> => {
     if (!selectedScenario) return;
@@ -36,14 +38,30 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
       return;
     }
 
+    setError('');
     setIsRequesting(true);
 
     try {
+      const location = await getCurrentLocation();
       // Call the backend to create a call request and start matching
-      const result = await api.requestCall(selectedScenario);
+      const result = await api.requestCall(
+        selectedScenario,
+        location?.latitude,
+        location?.longitude
+      );
 
       if (result.success) {
         const data = result.data as { call_session_id: string };
+
+        if (location) {
+          api.fireSos({
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }).catch(() => {
+            // Non-blocking: SOS may fail if contacts are not set
+          });
+        }
+
         router.push({
           pathname: '/matching',
           params: {
@@ -52,20 +70,10 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
           },
         });
       } else {
-        // Show error — e.g. insufficient tokens, already in a call
-        const errData = result as { error: { message: string } };
-        // Fallback to matching screen anyway for demo
-        router.push({
-          pathname: '/matching',
-          params: { scenario: selectedScenario, callSessionId: 'demo' },
-        });
+        setError(result.error.message);
       }
     } catch {
-      // Navigate to matching anyway for demo purposes
-      router.push({
-        pathname: '/matching',
-        params: { scenario: selectedScenario, callSessionId: 'demo' },
-      });
+      setError('Failed to create a call request. Please try again.');
     } finally {
       setIsRequesting(false);
     }
@@ -150,6 +158,12 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
                 You need at least 1 token to connect with a lawyer.
               </Text>
             </View>
+          </Surface>
+        ) : null}
+
+        {error ? (
+          <Surface style={styles.errorCard} elevation={1}>
+            <Text style={styles.errorText}>{error}</Text>
           </Surface>
         ) : null}
 
@@ -309,6 +323,18 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: brandColors.textMuted,
     marginTop: 2,
+  },
+  errorCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: brandColors.error,
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: brandColors.error,
   },
   requestButton: {
     borderRadius: 14,

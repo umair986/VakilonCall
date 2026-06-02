@@ -11,6 +11,7 @@ import {
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { api } from '../services/api';
 import { brandColors, spacing, typography } from '../utils/theme';
 
 interface EmergencyContact {
@@ -34,11 +35,28 @@ export default function SosContactsScreen(): React.JSX.Element {
 
   // Load existing contacts on mount
   useEffect(() => {
-    // TODO: Replace with api.getSosContacts()
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
+    api.getSosContacts()
+      .then((result) => {
+        if (result.success) {
+          const sorted = [...result.data].sort((a, b) => a.priority - b.priority);
+          if (sorted.length > 0) {
+            setContacts(
+              sorted.map((c) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone,
+                relation: c.relation ?? '',
+              }))
+            );
+          }
+        }
+      })
+      .catch(() => {
+        // Leave defaults on failure
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const addContact = useCallback(() => {
@@ -95,12 +113,24 @@ export default function SosContactsScreen(): React.JSX.Element {
         relation: c.relation.trim() || undefined,
       }));
 
-      // TODO: Replace with api.setSosContacts(formatted)
-      // Simulate save
-      await new Promise((r) => setTimeout(r, 500));
+      const result = await api.setSosContacts(formatted);
 
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      if (result.success) {
+        const sorted = [...result.data].sort((a, b) => a.priority - b.priority);
+        setContacts(
+          sorted.map((c) => ({
+            id: c.id,
+            name: c.name,
+            phone: c.phone,
+            relation: c.relation ?? '',
+          }))
+        );
+
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        Alert.alert('Error', result.error.message);
+      }
     } catch {
       Alert.alert('Error', 'Failed to save contacts. Please try again.');
     } finally {

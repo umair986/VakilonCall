@@ -81,6 +81,10 @@ export const verifyPaymentSchema = z.object({
   razorpay_signature: z.string().min(1),
 });
 
+export const devTokenCreditSchema = z.object({
+  pack_id: z.string().uuid('Invalid pack ID'),
+});
+
 // =============================================
 // CALL SCHEMAS
 // =============================================
@@ -193,6 +197,7 @@ export type UpdateLawyerProfileInput = z.infer<typeof updateLawyerProfileSchema>
 export type ToggleOnlineInput = z.infer<typeof toggleOnlineSchema>;
 export type CreateTokenOrderInput = z.infer<typeof createTokenOrderSchema>;
 export type VerifyPaymentInput = z.infer<typeof verifyPaymentSchema>;
+export type DevTokenCreditInput = z.infer<typeof devTokenCreditSchema>;
 export type CallRequestInput = z.infer<typeof callRequestSchema>;
 export type EndCallInput = z.infer<typeof endCallSchema>;
 export type RateCallInput = z.infer<typeof rateCallSchema>;
