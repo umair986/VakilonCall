@@ -90,7 +90,7 @@ export interface IIncomingCallEvent {
   call_session_id: string;
   scenario: string;
   language: string;
-  user_location: { lat: number; lng: number } | null;
+  user_location: { latitude: number; longitude: number } | null;
 }
 
 export interface ICallMatchedEvent {

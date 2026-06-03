@@ -4,6 +4,8 @@ import { Icon, Text } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { onCallMatched, onNoLawyers, onCallEnded, connectSocket } from '../services/socket';
 import { SCENARIOS } from '@vakiloncall/shared';
+import { api } from '../services/api';
+import { getCurrentLocation } from '../utils/location';
 import { brandColors, radius, spacing, typography } from '../utils/theme';
 import { DangerAction, EmptyState, LegalCard, PrimaryAction, Screen, StatusPill } from '../components/ui';
 
@@ -15,9 +17,16 @@ export default function MatchingScreen(): React.JSX.Element {
   const [lawyerName, setLawyerName] = useState('');
   const [lawyerRating, setLawyerRating] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [error, setError] = useState('');
+  const [activeCallId, setActiveCallId] = useState(params.callSessionId ?? '');
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const activeCallIdRef = useRef(activeCallId);
   const scenario = SCENARIOS.find((s) => s.type === params.scenario);
+
+  useEffect(() => {
+    activeCallIdRef.current = activeCallId;
+  }, [activeCallId]);
 
   useEffect(() => {
     if (status !== 'searching') return;
@@ -50,22 +59,63 @@ export default function MatchingScreen(): React.JSX.Element {
   useEffect(() => {
     connectSocket();
     onCallMatched((data) => {
+      if (activeCallIdRef.current && data.call_session_id !== activeCallIdRef.current) return;
       setStatus('matched');
       setLawyerName(data.lawyer_name);
       setLawyerRating(data.lawyer_rating);
+      router.replace({
+        pathname: '/call',
+        params: {
+          callSessionId: data.call_session_id,
+          lawyerName: data.lawyer_name,
+          lawyerRating: String(data.lawyer_rating),
+        },
+      });
     });
-    onNoLawyers(() => setStatus('no_lawyers'));
+    onNoLawyers((data) => {
+      if (activeCallIdRef.current && data.call_session_id !== activeCallIdRef.current) return;
+      setStatus('no_lawyers');
+    });
     onCallEnded(() => router.back());
   }, [router]);
 
   const handleCancel = useCallback(() => {
-    router.back();
-  }, [router]);
+    setError('');
+    if (!activeCallId) {
+      router.back();
+      return;
+    }
+
+    api.cancelCall(activeCallId)
+      .then(() => router.back())
+      .catch(() => {
+        setError('Failed to cancel the request. Please try again.');
+      });
+  }, [router, activeCallId]);
 
   const handleRetry = useCallback(() => {
     setStatus('searching');
     setElapsedSec(0);
-  }, []);
+    setError('');
+
+    const scenarioType = params.scenario ?? 'other';
+    getCurrentLocation()
+      .then((location) =>
+        api.requestCall(scenarioType, location?.latitude, location?.longitude)
+      )
+      .then((result) => {
+        if (result.success) {
+          setActiveCallId(result.data.call_session_id);
+          return;
+        }
+        setError(result.error.message);
+        setStatus('no_lawyers');
+      })
+      .catch(() => {
+        setError('Failed to retry. Please try again.');
+        setStatus('no_lawyers');
+      });
+  }, [params.scenario]);
 
   return (
     <Screen centered contentStyle={styles.content}>
@@ -94,6 +144,11 @@ export default function MatchingScreen(): React.JSX.Element {
               Stay on this screen while the platform locates an available lawyer.
             </Text>
           </LegalCard>
+          {error ? (
+            <LegalCard variant="danger" style={styles.noticeCard}>
+              <Text style={styles.noticeText}>{error}</Text>
+            </LegalCard>
+          ) : null}
           <DangerAction onPress={handleCancel}>Cancel Request</DangerAction>
         </>
       ) : status === 'matched' ? (

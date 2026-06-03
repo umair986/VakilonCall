@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { SCENARIOS } from '@vakiloncall/shared';
 import { useTokenStore } from '../stores/tokenStore';
 import { api } from '../services/api';
+import { getCurrentLocation } from '../utils/location';
 import { brandColors, radius, spacing, typography } from '../utils/theme';
 import { LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
 
@@ -14,6 +15,7 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
 
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [error, setError] = useState('');
 
   const handleRequestHelp = useCallback(async (): Promise<void> => {
     if (!selectedScenario) return;
@@ -22,27 +24,38 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
       return;
     }
 
+    setError('');
     setIsRequesting(true);
 
     try {
-      const result = await api.requestCall(selectedScenario);
+      const location = await getCurrentLocation();
+      const result = await api.requestCall(
+        selectedScenario,
+        location?.latitude,
+        location?.longitude
+      );
+
       if (result.success) {
         const data = result.data as { call_session_id: string };
+
+        if (location) {
+          api.fireSos({
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }).catch(() => {
+            // Non-blocking: emergency contacts may not be configured yet.
+          });
+        }
+
         router.push({
           pathname: '/matching',
           params: { scenario: selectedScenario, callSessionId: data.call_session_id },
         });
       } else {
-        router.push({
-          pathname: '/matching',
-          params: { scenario: selectedScenario, callSessionId: 'demo' },
-        });
+        setError(result.error.message);
       }
     } catch {
-      router.push({
-        pathname: '/matching',
-        params: { scenario: selectedScenario, callSessionId: 'demo' },
-      });
+      setError('Failed to create a call request. Please try again.');
     } finally {
       setIsRequesting(false);
     }
@@ -103,6 +116,12 @@ export default function ScenarioSelectScreen(): React.JSX.Element {
           <Text style={styles.guidanceText}>- The call is audio-only and limited to 15 minutes per token.</Text>
           <Text style={styles.guidanceText}>- Your selected category helps lawyers prepare context.</Text>
         </LegalCard>
+
+        {error ? (
+          <LegalCard variant="danger" style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </LegalCard>
+        ) : null}
       </Screen>
 
       <View style={styles.stickyBar}>
@@ -201,6 +220,13 @@ const styles = StyleSheet.create({
   guidanceText: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
+  },
+  errorCard: {
+    marginTop: spacing.md,
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: brandColors.errorLight,
   },
   stickyBar: {
     position: 'absolute',

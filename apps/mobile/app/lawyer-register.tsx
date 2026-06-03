@@ -4,6 +4,7 @@ import { Button, HelperText, Icon, Text, TextInput } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { brandColors, radius, spacing, typography } from '../utils/theme';
 import * as ImagePicker from 'expo-image-picker';
+import { api } from '../services/api';
 import { LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
 
 export default function LawyerRegisterScreen(): React.JSX.Element {
@@ -69,22 +70,7 @@ export default function LawyerRegisterScreen(): React.JSX.Element {
         } as unknown as Blob);
       }
 
-      const { useAuthStore: store } = await import('../stores/authStore');
-      const token = store.getState().accessToken;
-      const Constants = (await import('expo-constants')).default;
-      const baseUrl =
-        (Constants.expoConfig?.extra as Record<string, string> | undefined)?.API_BASE_URL ??
-        'http://localhost:3000';
-
-      const response = await fetch(`${baseUrl}/api/v1/lawyer/register`, {
-        method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
-      });
-
-      const data = await response.json();
+      const data = await api.registerLawyer(formData);
       if (data.success) {
         setSuccess(true);
       } else {

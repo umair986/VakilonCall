@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Icon, Text } from 'react-native-paper';
+import { ActivityIndicator, Icon, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useTokenStore } from '../stores/tokenStore';
 import { TOKEN_PACKS } from '@vakiloncall/shared';
@@ -8,63 +8,119 @@ import { api } from '../services/api';
 import { brandColors, radius, spacing, typography } from '../utils/theme';
 import { ActionRow, LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
 
+type TokenPackView = {
+  id?: string;
+  name: string;
+  tokens: number;
+  price_inr: number;
+  per_token_inr: number;
+  badge?: string | null;
+};
+
 export default function TokenStoreScreen(): React.JSX.Element {
   const router = useRouter();
   const balance = useTokenStore((s) => s.balance);
   const setBalance = useTokenStore((s) => s.setBalance);
-  const incrementBalance = useTokenStore((s) => s.incrementBalance);
+  const fallbackPacks = useMemo<TokenPackView[]>(
+    () =>
+      TOKEN_PACKS.map((pack) => ({
+        name: pack.name,
+        tokens: pack.tokens,
+        price_inr: pack.price_inr,
+        per_token_inr: pack.per_token_inr,
+        badge: pack.badge,
+      })),
+    []
+  );
+
+  const [packs, setPacks] = useState<TokenPackView[]>([]);
+  const [isLoadingPacks, setIsLoadingPacks] = useState(true);
+  const [selectedPackIndex, setSelectedPackIndex] = useState<number>(1);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const displayPacks = packs.length > 0 ? packs : fallbackPacks;
+
+  useEffect(() => {
+    setSelectedPackIndex((prev) =>
+      displayPacks.length === 0 ? 0 : Math.min(prev, displayPacks.length - 1)
+    );
+  }, [displayPacks.length]);
 
   useEffect(() => {
     let isMounted = true;
-    const fetchBalance = async () => {
+    const fetchStoreData = async () => {
       try {
-        const res = await api.getTokenBalance();
-        if (res.success && res.data && typeof res.data.token_balance === 'number' && isMounted) {
-          setBalance(res.data.token_balance);
+        const [packsResult, balanceResult] = await Promise.all([
+          api.getTokenPacks(),
+          api.getTokenBalance(),
+        ]);
+
+        if (!isMounted) return;
+
+        if (packsResult.success) {
+          setPacks(
+            packsResult.data.map((pack) => ({
+              ...pack,
+              per_token_inr: pack.price_inr / pack.tokens,
+            }))
+          );
+        }
+
+        if (balanceResult.success && typeof balanceResult.data.token_balance === 'number') {
+          setBalance(balanceResult.data.token_balance);
         }
       } catch (err) {
-        console.error('Failed to fetch token balance in store:', err);
+        console.error('Failed to fetch token store data:', err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingPacks(false);
+        }
       }
     };
-    fetchBalance();
+    fetchStoreData();
     return () => {
       isMounted = false;
     };
   }, [setBalance]);
 
-  const [selectedPackIndex, setSelectedPackIndex] = useState<number>(1);
-  const [isPurchasing, setIsPurchasing] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
   const handlePurchase = useCallback(async (): Promise<void> => {
     setError('');
     setSuccess('');
+    setPendingOrderId(null);
     setIsPurchasing(true);
 
     try {
-      const selectedPack = TOKEN_PACKS[selectedPackIndex];
+      const selectedPack = displayPacks[selectedPackIndex];
       if (!selectedPack) {
         setError('Please select a token pack.');
         return;
       }
 
-      const orderResult = await api.createTokenOrder('placeholder-pack-id');
-      if (!orderResult.success) {
-        setError('Payment gateway is not configured yet. Add Razorpay keys to enable purchases.');
+      if (!selectedPack.id) {
+        setError('Token packs are not available yet. Please try again later.');
         return;
       }
 
-      setSuccess(`${selectedPack.tokens} tokens added to your account.`);
-      incrementBalance(selectedPack.tokens);
+      const orderResult = await api.createTokenOrder(selectedPack.id);
+      if (!orderResult.success) {
+        setError(orderResult.error.message);
+        return;
+      }
+
+      setPendingOrderId(orderResult.data.order_id);
+      setSuccess(
+        `Order created for ${selectedPack.tokens} tokens. Complete payment in Razorpay to finish.`
+      );
     } catch {
       setError('Purchase failed. Please try again.');
     } finally {
       setIsPurchasing(false);
     }
-  }, [selectedPackIndex, incrementBalance]);
+  }, [selectedPackIndex, displayPacks]);
 
-  const selectedPack = TOKEN_PACKS[selectedPackIndex];
+  const selectedPack = displayPacks[selectedPackIndex];
 
   return (
     <>
@@ -81,12 +137,20 @@ export default function TokenStoreScreen(): React.JSX.Element {
 
         <Text style={styles.sectionTitle}>Choose a pack</Text>
 
+        {isLoadingPacks ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={brandColors.text} />
+            <Text style={styles.loadingText}>Loading token packs...</Text>
+          </View>
+        ) : null}
+
         <View style={styles.packList}>
-          {TOKEN_PACKS.map((pack, index) => {
+          {displayPacks.map((pack, index) => {
             const isSelected = selectedPackIndex === index;
+            const basePerToken = displayPacks[0]?.per_token_inr ?? 0;
             const savings =
-              index > 0
-                ? Math.round(((TOKEN_PACKS[0]!.per_token_inr - pack.per_token_inr) / TOKEN_PACKS[0]!.per_token_inr) * 100)
+              index > 0 && basePerToken > 0
+                ? Math.round(((basePerToken - pack.per_token_inr) / basePerToken) * 100)
                 : 0;
 
             return (
@@ -125,6 +189,11 @@ export default function TokenStoreScreen(): React.JSX.Element {
         {success ? (
           <LegalCard variant="notice" style={styles.messageCard}>
             <Text style={styles.messageText}>{success}</Text>
+          </LegalCard>
+        ) : null}
+        {pendingOrderId ? (
+          <LegalCard style={styles.messageCard}>
+            <Text style={styles.messageText}>Order ID: {pendingOrderId}</Text>
           </LegalCard>
         ) : null}
 
@@ -186,6 +255,16 @@ const styles = StyleSheet.create({
     ...typography.section,
     color: brandColors.textMuted,
     marginBottom: spacing.md,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  loadingText: {
+    ...typography.bodySmall,
+    color: brandColors.textSecondary,
   },
   packList: {
     gap: spacing.md,

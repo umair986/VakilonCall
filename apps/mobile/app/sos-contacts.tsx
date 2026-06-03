@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, IconButton, Text, TextInput } from 'react-native-paper';
+import { api } from '../services/api';
 import { brandColors, spacing, typography } from '../utils/theme';
 import { LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
 
@@ -20,8 +21,25 @@ export default function SosContactsScreen(): React.JSX.Element {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 400);
-    return () => clearTimeout(timer);
+    api.getSosContacts()
+      .then((result) => {
+        if (result.success) {
+          const sorted = [...result.data].sort((a, b) => a.priority - b.priority);
+          setContacts(
+            sorted.length > 0
+              ? sorted.map((contact) => ({
+                  id: contact.id,
+                  name: contact.name,
+                  phone: contact.phone,
+                  relation: contact.relation ?? '',
+                }))
+              : [{ ...EMPTY_CONTACT }]
+          );
+        }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const addContact = useCallback(() => {
@@ -62,9 +80,30 @@ export default function SosContactsScreen(): React.JSX.Element {
     setSaveSuccess(false);
 
     try {
-      await new Promise((r) => setTimeout(r, 500));
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      const formatted = validContacts.map((contact) => {
+        const digits = contact.phone.replace(/\D/g, '');
+        return {
+          name: contact.name.trim(),
+          phone: contact.phone.startsWith('+91') ? contact.phone : `+91${digits.slice(-10)}`,
+          relation: contact.relation.trim() || undefined,
+        };
+      });
+
+      const result = await api.setSosContacts(formatted);
+      if (result.success) {
+        setContacts(
+          result.data.map((contact) => ({
+            id: contact.id,
+            name: contact.name,
+            phone: contact.phone,
+            relation: contact.relation ?? '',
+          }))
+        );
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        Alert.alert('Error', result.error.message);
+      }
     } catch {
       Alert.alert('Save failed', 'Failed to save contacts. Please try again.');
     } finally {
