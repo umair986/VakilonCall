@@ -118,7 +118,7 @@ export default function CallScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: brandColors.background,
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h3,
-    color: brandColors.white,
+    color: brandColors.text,
   },
   content: {
     flex: 1,
@@ -138,8 +138,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   callCard: {
-    backgroundColor: brandColors.surfaceCard,
+    backgroundColor: '#FFFFFF',
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E0DA',
     padding: spacing.xl,
     alignItems: 'center',
     width: '100%',
@@ -152,7 +154,7 @@ const styles = StyleSheet.create({
   },
   callLawyerName: {
     ...typography.h2,
-    color: brandColors.white,
+    color: brandColors.text,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },

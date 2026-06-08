@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   commentInput: {
-    backgroundColor: brandColors.surfaceCard,
+    backgroundColor: '#FFFFFF',
     marginBottom: spacing.lg,
   },
   confirmIcon: {

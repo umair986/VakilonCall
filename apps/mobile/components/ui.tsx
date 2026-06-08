@@ -227,8 +227,8 @@ export function PrimaryAction(props: ButtonProps): React.JSX.Element {
     <Button
       mode="contained"
       {...props}
-      buttonColor={brandColors.text}
-      textColor={brandColors.black}
+      buttonColor={brandColors.black}
+      textColor={brandColors.white}
       style={[uiStyles.primaryAction, props.style]}
       labelStyle={[uiStyles.actionLabel, props.labelStyle]}
       contentStyle={[uiStyles.actionContent, props.contentStyle]}
@@ -316,12 +316,12 @@ const uiStyles = StyleSheet.create({
     backgroundColor: brandColors.surface,
   },
   noticeCard: {
-    backgroundColor: brandColors.surface,
+    backgroundColor: '#FAFAF6',
     borderLeftWidth: 3,
     borderLeftColor: brandColors.textSecondary,
   },
   dangerCard: {
-    backgroundColor: '#170B0A',
+    backgroundColor: '#FFF5F4',
     borderLeftWidth: 3,
     borderLeftColor: brandColors.error,
   },

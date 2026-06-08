@@ -173,7 +173,7 @@ export default function TransactionsScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: brandColors.background,
+    backgroundColor: '#FFFFFF',
     padding: spacing.lg,
   },
   listCard: {

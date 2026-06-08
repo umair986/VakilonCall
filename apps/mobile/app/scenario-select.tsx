@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     paddingBottom: spacing.lg,
-    backgroundColor: brandColors.background,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: brandColors.border,
+    borderTopColor: '#E2E0DA',
   },
   stickyCopy: {
     flex: 1,

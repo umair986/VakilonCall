@@ -220,9 +220,9 @@ const styles = StyleSheet.create({
     width: 46,
     height: 56,
     borderRadius: radius.md,
-    backgroundColor: brandColors.surface,
+    backgroundColor: '#F7F7F5',
     borderWidth: 1,
-    borderColor: brandColors.border,
+    borderColor: '#E2E0DA',
   },
   otpBoxFilled: {
     borderColor: brandColors.text,
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 22,
     fontWeight: '700',
-    color: brandColors.text,
+    color: '#111111',
   },
   errorText: {
     ...typography.bodySmall,

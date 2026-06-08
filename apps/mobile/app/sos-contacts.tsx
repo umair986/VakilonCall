@@ -231,7 +231,7 @@ export default function SosContactsScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: brandColors.background,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   input: {
-    backgroundColor: brandColors.surface,
+    backgroundColor: '#FFFFFF',
     fontSize: 15,
   },
   successBanner: {

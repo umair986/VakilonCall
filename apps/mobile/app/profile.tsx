@@ -116,10 +116,10 @@ export default function ProfileScreen(): React.JSX.Element {
               value={fullName}
               onChangeText={setFullName}
               maxLength={100}
-              outlineColor={brandColors.border}
-              activeOutlineColor={brandColors.text}
-              textColor={brandColors.text}
-              placeholderTextColor={brandColors.textMuted}
+              outlineColor="#E2E0DA"
+              activeOutlineColor="#111111"
+              textColor="#111111"
+              placeholderTextColor="#8A8A84"
             />
             <PrimaryAction
               onPress={handleSaveName}
@@ -197,8 +197,8 @@ const styles = StyleSheet.create({
     height: 76,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: brandColors.borderLight,
-    backgroundColor: brandColors.surface,
+    borderColor: '#E2E0DA',
+    backgroundColor: '#F0EDE5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 30,
     fontWeight: '700',
-    color: brandColors.text,
+    color: '#111111',
   },
   name: {
     ...typography.h3,
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     flex: 1,
-    backgroundColor: brandColors.surface,
+    backgroundColor: '#FFFFFF',
     fontSize: 16,
   },
   saveButton: {

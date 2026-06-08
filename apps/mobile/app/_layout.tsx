@@ -7,11 +7,11 @@ import { darkTheme } from '../utils/theme';
 export default function RootLayout(): React.JSX.Element {
   return (
     <PaperProvider theme={darkTheme}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: darkTheme.colors.background },
+          contentStyle: { backgroundColor: '#FFFFFF' },
           animation: 'slide_from_right',
         }}
       />

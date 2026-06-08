@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Icon, IconButton, Text } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import { useAuthStore } from '../stores/authStore';
 import { useTokenStore } from '../stores/tokenStore';
 import { api } from '../services/api';
@@ -19,7 +19,11 @@ const palette = {
   danger: '#B42318',
 };
 
-export default function HomeScreen(): React.JSX.Element {
+export default function HomeRoute(): React.JSX.Element {
+  return <Redirect href="/user-tabs" />;
+}
+
+export function HomeScreen(): React.JSX.Element {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const balance = useTokenStore((s) => s.balance);

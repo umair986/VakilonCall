@@ -1,158 +1,76 @@
 import React, { useCallback, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { Button, Icon, Text, TextInput } from 'react-native-paper';
+import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Button, Icon, Text } from 'react-native-paper';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '../stores/authStore';
-import { api } from '../services/api';
 import { radius, spacing, typography } from '../utils/theme';
 
 const palette = {
-  paper: '#FBFAF6',
-  ink: '#0B0B0B',
-  muted: '#62615C',
-  faint: '#E8E5DD',
-  line: '#D8D4C9',
-  black: '#000000',
   white: '#FFFFFF',
+  black: '#000000',
+  ink: '#111111',
+  muted: '#6B6B6B',
+  line: '#E4E4E4',
+  faint: '#F7F7F7',
   danger: '#B42318',
 };
 
 export default function LoginScreen(): React.JSX.Element {
   const router = useRouter();
-  const setLoading = useAuthStore((s) => s.setLoading);
+  const [message, setMessage] = useState('');
 
-  const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const formatPhoneDisplay = useCallback((text: string): string => {
-    const digits = text.replace(/\D/g, '');
-    return digits.slice(0, 10);
+  const handleGoogle = useCallback((): void => {
+    setMessage('Google sign-in frontend is ready. Connect OAuth next.');
   }, []);
-
-  const handleSendOtp = useCallback(async (): Promise<void> => {
-    setError('');
-
-    if (phone.length !== 10) {
-      setError('Enter a valid 10-digit mobile number.');
-      return;
-    }
-
-    const fullPhone = `+91${phone}`;
-    setIsSubmitting(true);
-    setLoading(true);
-
-    try {
-      const result = await api.sendOtp(fullPhone);
-      if (result.success) {
-        router.push({ pathname: '/otp', params: { phone: fullPhone } });
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError('Unable to send OTP. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-      setLoading(false);
-    }
-  }, [phone, router, setLoading]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <View style={styles.content}>
-          <View style={styles.letterhead}>
-            <View style={styles.seal}>
-              <Icon source="scale-balance" color={palette.white} size={30} />
-            </View>
-            <View style={styles.brandCopy}>
-              <Text style={styles.brandName}>Vakil On Call</Text>
-              <Text style={styles.brandMeta}>Verified legal access in India</Text>
-            </View>
-          </View>
-
-          <View style={styles.hero}>
-            <Text style={styles.overline}>Private consultation access</Text>
-            <Text style={styles.headline}>Legal help, without the waiting room.</Text>
-            <Text style={styles.subhead}>
-              Sign in with your mobile number to request a lawyer, review your
-              rights, or manage consultation tokens.
-            </Text>
-          </View>
-
-          <View style={styles.formPanel}>
-            <View style={styles.panelRule} />
-            <Text style={styles.panelTitle}>Mobile verification</Text>
-            <Text style={styles.panelNote}>
-              We will send a one-time password to confirm access.
-            </Text>
-
-            <View style={styles.phoneInputRow}>
-              <View style={styles.countryCode}>
-                <Text style={styles.countryCodeText}>+91</Text>
-              </View>
-              <TextInput
-                style={styles.phoneInput}
-                mode="outlined"
-                placeholder="9876543210"
-                value={phone}
-                onChangeText={(text) => setPhone(formatPhoneDisplay(text))}
-                keyboardType="phone-pad"
-                maxLength={10}
-                outlineColor={palette.line}
-                activeOutlineColor={palette.black}
-                textColor={palette.ink}
-                placeholderTextColor={palette.muted}
-                autoFocus
-              />
-            </View>
-
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <Button
-              mode="contained"
-              onPress={handleSendOtp}
-              loading={isSubmitting}
-              disabled={isSubmitting || phone.length !== 10}
-              buttonColor={palette.black}
-              textColor={palette.white}
-              icon="login"
-              style={styles.primaryButton}
-              contentStyle={styles.buttonContent}
-              labelStyle={styles.buttonLabel}
-            >
-              {isSubmitting ? 'Sending OTP' : 'Continue Securely'}
-            </Button>
-          </View>
-
-          <View style={styles.rightsStrip}>
-            <View style={styles.rightsIcon}>
-              <Icon source="shield-check-outline" color={palette.ink} size={18} />
-            </View>
-            <View style={styles.rightsCopy}>
-              <Text style={styles.rightsTitle}>Know your rights</Text>
-              <Text style={styles.rightsText}>Free constitutional reference, no login required.</Text>
-            </View>
-            <Button
-              mode="text"
-              textColor={palette.black}
-              onPress={() => router.push('/rights')}
-              compact
-            >
-              Open
-            </Button>
-          </View>
+      <StatusBar style="dark" />
+      <View style={styles.hero}>
+        <View style={styles.logoMark}>
+          <Icon source="scale-balance" color={palette.black} size={34} />
         </View>
-      </KeyboardAvoidingView>
+        <Text style={styles.title}>Almost there</Text>
+        <Text style={styles.subtitle}>Sign up or log in to continue.</Text>
+        <Text style={styles.caption}>It only takes a minute.</Text>
+      </View>
+
+      <View style={styles.sheet}>
+        <View style={styles.actions}>
+          <Button
+            mode="outlined"
+            onPress={handleGoogle}
+            icon="google"
+            textColor={palette.black}
+            style={[styles.authButton, styles.googleButton]}
+            contentStyle={styles.authButtonContent}
+            labelStyle={styles.authButtonLabel}
+          >
+            Continue with Google
+          </Button>
+
+          <Button
+            mode="contained"
+            onPress={() => router.push('/mobile-login')}
+            icon="cellphone"
+            buttonColor={palette.black}
+            textColor={palette.white}
+            style={styles.authButton}
+            contentStyle={styles.authButtonContent}
+            labelStyle={styles.authButtonLabel}
+          >
+            Continue with Mobile
+          </Button>
+        </View>
+
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+
+        <View style={styles.footer}>
+          <Text style={styles.terms}>
+            By continuing you agree to our Terms and Privacy Policy.
+          </Text>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -160,160 +78,90 @@ export default function LoginScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.paper,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    padding: spacing.lg,
-    justifyContent: 'center',
-  },
-  letterhead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  seal: {
-    width: 54,
-    height: 54,
-    borderRadius: radius.md,
-    backgroundColor: palette.black,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandCopy: {
-    flex: 1,
-  },
-  brandName: {
-    ...typography.h3,
-    color: palette.ink,
-  },
-  brandMeta: {
-    ...typography.caption,
-    color: palette.muted,
-    marginTop: 2,
+    backgroundColor: palette.white,
   },
   hero: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: palette.ink,
-    paddingVertical: spacing.xl,
+    minHeight: '44%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    backgroundColor: palette.white,
+  },
+  logoMark: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: palette.black,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.lg,
   },
-  overline: {
-    ...typography.section,
-    color: palette.muted,
-    marginBottom: spacing.md,
+  title: {
+    ...typography.h2,
+    color: palette.black,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
-  headline: {
-    fontSize: 36,
-    lineHeight: 42,
-    fontWeight: '800',
-    color: palette.ink,
-  },
-  subhead: {
-    ...typography.body,
-    color: palette.muted,
-    marginTop: spacing.md,
-  },
-  formPanel: {
-    backgroundColor: palette.white,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: palette.line,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  panelRule: {
-    width: 52,
-    height: 4,
-    backgroundColor: palette.black,
-    marginBottom: spacing.md,
-  },
-  panelTitle: {
-    ...typography.h3,
-    color: palette.ink,
-  },
-  panelNote: {
+  subtitle: {
     ...typography.bodySmall,
     color: palette.muted,
+    textAlign: 'center',
+  },
+  caption: {
+    ...typography.caption,
+    color: palette.black,
+    fontWeight: '700',
+    textAlign: 'center',
     marginTop: spacing.xs,
-    marginBottom: spacing.md,
   },
-  phoneInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  countryCode: {
-    minWidth: 62,
-    height: 56,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: palette.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.paper,
-  },
-  countryCodeText: {
-    ...typography.body,
-    color: palette.ink,
-    fontWeight: '800',
-  },
-  phoneInput: {
+  sheet: {
     flex: 1,
-    backgroundColor: palette.white,
-    fontSize: 18,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: palette.danger,
-    marginTop: spacing.sm,
-  },
-  primaryButton: {
-    borderRadius: radius.sm,
-    marginTop: spacing.lg,
-  },
-  buttonContent: {
-    minHeight: 50,
-  },
-  buttonLabel: {
-    ...typography.button,
-  },
-  rightsStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: palette.line,
     backgroundColor: palette.faint,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  rightsIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
-    borderWidth: 1,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    borderTopWidth: 1,
     borderColor: palette.line,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    justifyContent: 'space-between',
+  },
+  actions: {
+    gap: spacing.md,
+  },
+  authButton: {
+    borderRadius: radius.sm,
+    borderColor: palette.line,
+  },
+  googleButton: {
     backgroundColor: palette.white,
   },
-  rightsCopy: {
+  authButtonContent: {
+    minHeight: 52,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.sm,
+  },
+  authButtonLabel: {
+    ...typography.button,
     flex: 1,
+    textAlign: 'left',
   },
-  rightsTitle: {
-    ...typography.bodySmall,
-    color: palette.ink,
-    fontWeight: '800',
-  },
-  rightsText: {
+  message: {
     ...typography.caption,
     color: palette.muted,
-    marginTop: 2,
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: palette.line,
+    paddingTop: spacing.md,
+  },
+  terms: {
+    ...typography.caption,
+    color: palette.muted,
+    textAlign: 'center',
   },
 });
