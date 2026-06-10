@@ -1,8 +1,8 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io';
-import { supabaseAdmin } from '../utils/supabase';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
 import { WS_EVENTS, CALL_ECONOMICS } from '@vakiloncall/shared';
+import { verifyAccessToken } from '../utils/jwt';
 
 // Track online lawyers: Map<lawyerUserId, socketId>
 const onlineLawyers = new Map<string, string>();
@@ -11,7 +11,7 @@ const onlineLawyers = new Map<string, string>();
 const matchingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
- * Authenticate a socket connection using the Supabase JWT from auth.token.
+ * Authenticate a socket connection using a local JWT from auth.token.
  * Returns the user record or null if authentication fails.
  */
 async function authenticateSocket(
@@ -21,15 +21,11 @@ async function authenticateSocket(
     const token = socket.handshake.auth?.token as string | undefined;
     if (!token) return null;
 
-    const {
-      data: { user: supabaseUser },
-      error,
-    } = await supabaseAdmin.auth.getUser(token);
-
-    if (error || !supabaseUser?.phone) return null;
+    const payload = verifyAccessToken(token);
+    if (!payload || !payload.phone) return null;
 
     const dbUser = await prisma.user.findUnique({
-      where: { phone: supabaseUser.phone },
+      where: { phone: payload.phone },
       select: { id: true, phone: true, role: true, is_active: true, is_banned: true },
     });
 

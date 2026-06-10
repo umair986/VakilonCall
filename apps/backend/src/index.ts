@@ -17,6 +17,7 @@ import { adminRouter } from './routes/admin';
 import { errorHandler } from './middleware/errorHandler';
 import { initSocketHandlers } from './socket/handler';
 import { logger } from './utils/logger';
+import { getUploadsDir } from './utils/storage';
 
 const app = express();
 const httpServer = createServer(app);
@@ -42,6 +43,9 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files (evidence, lawyer documents)
+app.use('/uploads', express.static(getUploadsDir()));
 
 // Global rate limiter
 app.use(

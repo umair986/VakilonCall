@@ -1,9 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
-import { supabaseAdmin } from '../utils/supabase';
 import { prisma } from '../utils/prisma';
 import { sendError } from '../utils/response';
 import { logger } from '../utils/logger';
-import { isDevAuthBypassEnabled, isDevAuthPhone, parseDevAccessToken } from '../utils/devAuth';
+import { verifyAccessToken } from '../utils/jwt';
 import type { IUser } from '@vakiloncall/shared';
 
 // Extend Express Request to include authenticated user
@@ -15,7 +14,7 @@ declare global {
   }
 }
 
-// Authenticates requests using Supabase JWT from Authorization header
+// Authenticates requests using local JWT from Authorization header
 export async function authMiddleware(
   req: Request,
   res: Response,
@@ -30,36 +29,21 @@ export async function authMiddleware(
 
     const token = authHeader.substring(7);
 
-    if (isDevAuthBypassEnabled()) {
-      const devPhone = parseDevAccessToken(token);
+    // Verify the JWT locally
+    const payload = verifyAccessToken(token);
 
-      if (devPhone) {
-        if (!isDevAuthPhone(devPhone)) {
-          sendError(res, 401, 'AUTH_UNAUTHORIZED', 'Invalid or expired token');
-          return;
-        }
+    if (!payload) {
+      sendError(res, 401, 'AUTH_UNAUTHORIZED', 'Invalid or expired token');
+      return;
+    }
 
-        const dbUser = await prisma.user.findUnique({
-          where: { phone: devPhone },
-        });
+    // If the token has a userId, look up the user in DB
+    if (payload.userId) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: payload.userId },
+      });
 
-        if (!dbUser) {
-          req.user = {
-            id: '',
-            phone: devPhone,
-            full_name: null,
-            role: 'user',
-            language_pref: 'en',
-            token_balance: 0,
-            is_active: true,
-            is_banned: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          next();
-          return;
-        }
-
+      if (dbUser) {
         if (dbUser.is_banned) {
           sendError(res, 403, 'USER_BANNED', 'Your account has been suspended');
           return;
@@ -88,59 +72,49 @@ export async function authMiddleware(
       }
     }
 
-    // Verify the JWT with Supabase
-    const { data: { user: supabaseUser }, error } = await supabaseAdmin.auth.getUser(token);
+    // User not in DB yet (new user, hasn't set role)
+    // Try to find by phone from JWT payload
+    if (payload.phone) {
+      const dbUser = await prisma.user.findUnique({
+        where: { phone: payload.phone },
+      });
 
-    if (error || !supabaseUser) {
-      sendError(res, 401, 'AUTH_UNAUTHORIZED', 'Invalid or expired token');
-      return;
+      if (dbUser) {
+        if (dbUser.is_banned) {
+          sendError(res, 403, 'USER_BANNED', 'Your account has been suspended');
+          return;
+        }
+
+        req.user = {
+          id: dbUser.id,
+          phone: dbUser.phone,
+          full_name: dbUser.full_name,
+          role: dbUser.role as IUser['role'],
+          language_pref: dbUser.language_pref as IUser['language_pref'],
+          token_balance: dbUser.token_balance,
+          is_active: dbUser.is_active,
+          is_banned: dbUser.is_banned,
+          created_at: dbUser.created_at.toISOString(),
+          updated_at: dbUser.updated_at.toISOString(),
+        };
+
+        next();
+        return;
+      }
     }
 
-    // Get the user from our database
-    const dbUser = await prisma.user.findUnique({
-      where: { phone: supabaseUser.phone ?? '' },
-    });
-
-    if (!dbUser) {
-      // User exists in Supabase Auth but not in our DB yet (first login, role not set)
-      // Attach minimal info so set-role endpoint can create the user
-      req.user = {
-        id: '',
-        phone: supabaseUser.phone ?? '',
-        full_name: null,
-        role: 'user',
-        language_pref: 'en',
-        token_balance: 0,
-        is_active: true,
-        is_banned: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      next();
-      return;
-    }
-
-    if (dbUser.is_banned) {
-      sendError(res, 403, 'USER_BANNED', 'Your account has been suspended');
-      return;
-    }
-
-    if (!dbUser.is_active) {
-      sendError(res, 403, 'USER_BANNED', 'Your account is deactivated');
-      return;
-    }
-
+    // Brand new user — attach minimal info so set-role endpoint can create the user
     req.user = {
-      id: dbUser.id,
-      phone: dbUser.phone,
-      full_name: dbUser.full_name,
-      role: dbUser.role as IUser['role'],
-      language_pref: dbUser.language_pref as IUser['language_pref'],
-      token_balance: dbUser.token_balance,
-      is_active: dbUser.is_active,
-      is_banned: dbUser.is_banned,
-      created_at: dbUser.created_at.toISOString(),
-      updated_at: dbUser.updated_at.toISOString(),
+      id: '',
+      phone: payload.phone ?? '',
+      full_name: null,
+      role: 'user',
+      language_pref: 'en',
+      token_balance: 0,
+      is_active: true,
+      is_banned: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     next();

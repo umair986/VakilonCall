@@ -1,9 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import { ActivityIndicator, IconButton, Text, TextInput } from 'react-native-paper';
-import { api } from '../services/api';
-import { brandColors, spacing, typography } from '../utils/theme';
-import { LegalCard, PrimaryAction, Screen, ScreenHeader, StatusPill } from '../components/ui';
+import React, { useState, useEffect, useCallback } from "react";
+import { Alert, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  IconButton,
+  Text,
+  TextInput,
+} from "react-native-paper";
+import { api } from "../services/api";
+import { brandColors, spacing, typography } from "../utils/theme";
+import {
+  LegalCard,
+  PrimaryAction,
+  Screen,
+  ScreenHeader,
+  StatusPill,
+} from "../components/ui";
 
 interface EmergencyContact {
   id?: string;
@@ -12,28 +23,33 @@ interface EmergencyContact {
   relation: string;
 }
 
-const EMPTY_CONTACT: EmergencyContact = { name: '', phone: '', relation: '' };
+const EMPTY_CONTACT: EmergencyContact = { name: "", phone: "", relation: "" };
 
 export default function SosContactsScreen(): React.JSX.Element {
-  const [contacts, setContacts] = useState<EmergencyContact[]>([{ ...EMPTY_CONTACT }]);
+  const [contacts, setContacts] = useState<EmergencyContact[]>([
+    { ...EMPTY_CONTACT },
+  ]);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    api.getSosContacts()
+    api
+      .getSosContacts()
       .then((result) => {
         if (result.success) {
-          const sorted = [...result.data].sort((a, b) => a.priority - b.priority);
+          const sorted = [...result.data].sort(
+            (a, b) => a.priority - b.priority,
+          );
           setContacts(
             sorted.length > 0
               ? sorted.map((contact) => ({
                   id: contact.id,
                   name: contact.name,
                   phone: contact.phone,
-                  relation: contact.relation ?? '',
+                  relation: contact.relation ?? "",
                 }))
-              : [{ ...EMPTY_CONTACT }]
+              : [{ ...EMPTY_CONTACT }],
           );
         }
       })
@@ -44,7 +60,7 @@ export default function SosContactsScreen(): React.JSX.Element {
 
   const addContact = useCallback(() => {
     if (contacts.length >= 3) {
-      Alert.alert('Maximum reached', 'You can add up to 3 emergency contacts.');
+      Alert.alert("Maximum reached", "You can add up to 3 emergency contacts.");
       return;
     }
     setContacts((prev) => [...prev, { ...EMPTY_CONTACT }]);
@@ -56,22 +72,32 @@ export default function SosContactsScreen(): React.JSX.Element {
 
   const updateContact = useCallback(
     (index: number, field: keyof EmergencyContact, value: string) => {
-      setContacts((prev) => prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
+      setContacts((prev) =>
+        prev.map((c, i) => (i === index ? { ...c, [field]: value } : c)),
+      );
     },
-    []
+    [],
   );
 
   const handleSave = useCallback(async (): Promise<void> => {
-    const validContacts = contacts.filter((c) => c.name.trim() && c.phone.trim());
+    const validContacts = contacts.filter(
+      (c) => c.name.trim() && c.phone.trim(),
+    );
     if (validContacts.length === 0) {
-      Alert.alert('Missing contact', 'Add at least one contact with name and phone.');
+      Alert.alert(
+        "Missing contact",
+        "Add at least one contact with name and phone.",
+      );
       return;
     }
 
     for (const contact of validContacts) {
-      const digits = contact.phone.replace(/\D/g, '');
-      if (digits.length !== 10 && digits.length !== 12 && digits.length !== 13) {
-        Alert.alert('Invalid phone', `Invalid phone number for ${contact.name}.`);
+      const digits = contact.phone.replace(/\D/g, "");
+      if (digits.length !== 10) {
+        Alert.alert(
+          "Invalid phone",
+          `Phone number for ${contact.name || "a contact"} must be exactly 10 digits.`,
+        );
         return;
       }
     }
@@ -81,10 +107,10 @@ export default function SosContactsScreen(): React.JSX.Element {
 
     try {
       const formatted = validContacts.map((contact) => {
-        const digits = contact.phone.replace(/\D/g, '');
+        const digits = contact.phone.replace(/\D/g, "");
         return {
           name: contact.name.trim(),
-          phone: contact.phone.startsWith('+91') ? contact.phone : `+91${digits.slice(-10)}`,
+          phone: `+91${digits}`,
           relation: contact.relation.trim() || undefined,
         };
       });
@@ -96,16 +122,16 @@ export default function SosContactsScreen(): React.JSX.Element {
             id: contact.id,
             name: contact.name,
             phone: contact.phone,
-            relation: contact.relation ?? '',
-          }))
+            relation: contact.relation ?? "",
+          })),
         );
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        Alert.alert('Error', result.error.message);
+        Alert.alert("Error", result.error.message);
       }
     } catch {
-      Alert.alert('Save failed', 'Failed to save contacts. Please try again.');
+      Alert.alert("Save failed", "Failed to save contacts. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -114,7 +140,11 @@ export default function SosContactsScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <>
-        <ScreenHeader title="Emergency Contacts" subtitle="Location alerts" back />
+        <ScreenHeader
+          title="Emergency Contacts"
+          subtitle="Location alerts"
+          back
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={brandColors.text} />
         </View>
@@ -124,10 +154,18 @@ export default function SosContactsScreen(): React.JSX.Element {
 
   return (
     <>
-      <ScreenHeader title="Emergency Contacts" subtitle="Location alerts" back />
+      <ScreenHeader
+        title="Emergency Contacts"
+        subtitle="Location alerts"
+        back
+      />
       <Screen scroll>
         <LegalCard variant="danger" style={styles.infoBanner}>
-          <StatusPill label="Emergency alert" tone="danger" icon="alert-outline" />
+          <StatusPill
+            label="Emergency alert"
+            tone="danger"
+            icon="alert-outline"
+          />
           <Text style={styles.infoText}>
             These contacts can receive an SMS with your GPS location when you
             request legal assistance.
@@ -156,7 +194,7 @@ export default function SosContactsScreen(): React.JSX.Element {
                 label="Full Name *"
                 placeholder="Rahul Sharma"
                 value={contact.name}
-                onChangeText={(v) => updateContact(index, 'name', v)}
+                onChangeText={(v) => updateContact(index, "name", v)}
                 maxLength={100}
                 outlineColor={brandColors.border}
                 activeOutlineColor={brandColors.text}
@@ -170,9 +208,11 @@ export default function SosContactsScreen(): React.JSX.Element {
                 label="Phone Number *"
                 placeholder="9876543210"
                 value={contact.phone}
-                onChangeText={(v) => updateContact(index, 'phone', v.replace(/[^\d+]/g, ''))}
+                onChangeText={(v) =>
+                  updateContact(index, "phone", v.replace(/\D/g, ""))
+                }
                 keyboardType="phone-pad"
-                maxLength={13}
+                maxLength={10}
                 outlineColor={brandColors.border}
                 activeOutlineColor={brandColors.text}
                 textColor={brandColors.text}
@@ -185,7 +225,7 @@ export default function SosContactsScreen(): React.JSX.Element {
                 label="Relation"
                 placeholder="Mother, friend, spouse"
                 value={contact.relation}
-                onChangeText={(v) => updateContact(index, 'relation', v)}
+                onChangeText={(v) => updateContact(index, "relation", v)}
                 maxLength={50}
                 outlineColor={brandColors.border}
                 activeOutlineColor={brandColors.text}
@@ -204,7 +244,9 @@ export default function SosContactsScreen(): React.JSX.Element {
 
         {saveSuccess ? (
           <LegalCard variant="notice" style={styles.successBanner}>
-            <Text style={styles.successText}>Emergency contacts saved successfully.</Text>
+            <Text style={styles.successText}>
+              Emergency contacts saved successfully.
+            </Text>
           </LegalCard>
         ) : null}
 
@@ -214,13 +256,14 @@ export default function SosContactsScreen(): React.JSX.Element {
           disabled={isSaving}
           icon="content-save-outline"
         >
-          {isSaving ? 'Saving' : 'Save Emergency Contacts'}
+          {isSaving ? "Saving" : "Save Emergency Contacts"}
         </PrimaryAction>
 
         <LegalCard style={styles.previewCard}>
           <Text style={styles.previewTitle}>SMS preview</Text>
           <Text style={styles.previewText}>
-            URGENT: [Your Name] needs help. Location: https://maps.google.com/?q=...
+            URGENT: [Your Name] needs help. Location:
+            https://maps.google.com/?q=...
           </Text>
         </LegalCard>
       </Screen>
@@ -231,9 +274,9 @@ export default function SosContactsScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
   },
   infoBanner: {
     gap: spacing.sm,
@@ -251,9 +294,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   contactHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   contactNumber: {
     ...typography.section,
@@ -263,7 +306,7 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     fontSize: 15,
   },
   successBanner: {
@@ -272,7 +315,7 @@ const styles = StyleSheet.create({
   successText: {
     ...typography.bodySmall,
     color: brandColors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   previewCard: {
     marginTop: spacing.lg,

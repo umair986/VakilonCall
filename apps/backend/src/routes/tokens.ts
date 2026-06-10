@@ -5,7 +5,6 @@ import { authMiddleware, requireRegistered } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
-import { isDevAuthBypassEnabled } from '../utils/devAuth';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
@@ -19,8 +18,7 @@ const razorpay = new Razorpay({
 });
 
 const isDevPaymentBypassEnabled = (): boolean =>
-  process.env.NODE_ENV !== 'production' &&
-  (process.env.DEV_PAYMENT_BYPASS === 'true' || isDevAuthBypassEnabled());
+  process.env.NODE_ENV !== 'production';
 
 // GET /api/v1/tokens/packs
 tokenRouter.get('/packs', async (_req: Request, res: Response): Promise<void> => {

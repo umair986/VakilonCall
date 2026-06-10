@@ -1,34 +1,34 @@
-import React, { useCallback, useState } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import { Button, Icon, Text } from 'react-native-paper';
-import { useRouter } from 'expo-router';
-import { radius, spacing, typography } from '../utils/theme';
+import React, { useCallback, useState } from "react";
+import { SafeAreaView, StyleSheet, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { Button, Icon, Text } from "react-native-paper";
+import { useRouter } from "expo-router";
+import { radius, spacing, typography } from "../utils/theme";
 
 const palette = {
-  white: '#FFFFFF',
-  black: '#000000',
-  ink: '#111111',
-  muted: '#6B6B6B',
-  line: '#E4E4E4',
-  faint: '#F7F7F7',
-  danger: '#B42318',
+  white: "#FFFFFF",
+  black: "#000000",
+  ink: "#111111",
+  muted: "#6B6B6B",
+  line: "#E4E4E4",
+  faint: "#F7F7F7",
+  danger: "#B42318",
 };
 
 export default function LoginScreen(): React.JSX.Element {
   const router = useRouter();
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
 
   const handleGoogle = useCallback((): void => {
-    setMessage('Google sign-in frontend is ready. Connect OAuth next.');
+    setMessage("Google sign-in frontend is ready. Connect OAuth next.");
   }, []);
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <View style={styles.hero}>
         <View style={styles.logoMark}>
-          <Icon source="scale-balance" color={palette.black} size={34} />
+          <Icon source="scale-balance" color={palette.white} size={34} />
         </View>
         <Text style={styles.title}>Almost there</Text>
         <Text style={styles.subtitle}>Sign up or log in to continue.</Text>
@@ -51,7 +51,7 @@ export default function LoginScreen(): React.JSX.Element {
 
           <Button
             mode="contained"
-            onPress={() => router.push('/mobile-login')}
+            onPress={() => router.push("/mobile-login")}
             icon="cellphone"
             buttonColor={palette.black}
             textColor={palette.white}
@@ -78,45 +78,45 @@ export default function LoginScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.white,
+    backgroundColor: palette.black,
   },
   hero: {
-    minHeight: '44%',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 3,
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: spacing.xl,
-    backgroundColor: palette.white,
+    backgroundColor: palette.black,
   },
   logoMark: {
     width: 72,
     height: 72,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: palette.black,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: palette.white,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: spacing.lg,
   },
   title: {
     ...typography.h2,
-    color: palette.black,
-    textAlign: 'center',
+    color: palette.white,
+    textAlign: "center",
     marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.bodySmall,
-    color: palette.muted,
-    textAlign: 'center',
+    color: "#E0E0E0",
+    textAlign: "center",
   },
   caption: {
     ...typography.caption,
-    color: palette.black,
-    fontWeight: '700',
-    textAlign: 'center',
+    color: palette.white,
+    fontWeight: "700",
+    textAlign: "center",
     marginTop: spacing.xs,
   },
   sheet: {
-    flex: 1,
+    flex: 7,
     backgroundColor: palette.faint,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   actions: {
     gap: spacing.md,
@@ -139,19 +139,19 @@ const styles = StyleSheet.create({
   },
   authButtonContent: {
     minHeight: 52,
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.sm,
   },
   authButtonLabel: {
     ...typography.button,
     flex: 1,
-    textAlign: 'left',
+    textAlign: "left",
   },
   message: {
     ...typography.caption,
     color: palette.muted,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: spacing.md,
   },
   footer: {
@@ -162,6 +162,6 @@ const styles = StyleSheet.create({
   terms: {
     ...typography.caption,
     color: palette.muted,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

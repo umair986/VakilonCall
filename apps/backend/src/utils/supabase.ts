@@ -1,17 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_KEY environment variables');
-}
-
-// Service role client — has admin access, bypasses RLS
-// Use ONLY in backend. Never expose the service key.
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+// Supabase has been removed from this project.
+// Database: Local PostgreSQL via Docker
+// Auth: Local JWT (see utils/jwt.ts)
+// Storage: Local filesystem (see utils/storage.ts)

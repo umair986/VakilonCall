@@ -3,60 +3,42 @@ import { sendOtpSchema, verifyOtpSchema, setRoleSchema } from '@vakiloncall/shar
 import { validateBody } from '../middleware/validate';
 import { authMiddleware } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
-import { supabaseAdmin } from '../utils/supabase';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
-import {
-  isDevAuthBypassEnabled,
-  isDevAuthPhone,
-  isDevAuthOtp,
-  createDevAccessToken,
-} from '../utils/devAuth';
+import { signAccessToken, signRefreshToken } from '../utils/jwt';
 import type { Request, Response } from 'express';
 
 export const authRouter = Router();
 
-const validateSendOtp = (req: Request, res: Response, next: () => void): void => {
-  if (isDevAuthBypassEnabled() && isDevAuthPhone((req.body as { phone?: string })?.phone ?? '')) {
-    next();
-    return;
+// =============================================
+// In-memory OTP store for development
+// In production, use Redis or a proper OTP service
+// =============================================
+const otpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+const DEV_OTP = process.env.DEV_AUTH_OTP ?? '123456';
+const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+
+function generateOtp(): string {
+  // In dev mode, always use the dev OTP for simplicity
+  if (process.env.NODE_ENV !== 'production') {
+    return DEV_OTP;
   }
-
-  validateBody(sendOtpSchema)(req, res, next);
-};
-
-const validateVerifyOtp = (req: Request, res: Response, next: () => void): void => {
-  const body = req.body as { phone?: string; otp?: string };
-  if (isDevAuthBypassEnabled() && isDevAuthPhone(body?.phone ?? '') && typeof body?.otp === 'string') {
-    next();
-    return;
-  }
-
-  validateBody(verifyOtpSchema)(req, res, next);
-};
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
 
 // POST /api/v1/auth/send-otp
-authRouter.post('/send-otp', validateSendOtp, async (req: Request, res: Response): Promise<void> => {
+authRouter.post('/send-otp', validateBody(sendOtpSchema), async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone } = req.body as { phone: string };
 
-    if (isDevAuthBypassEnabled()) {
-      if (!isDevAuthPhone(phone)) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'Use the configured dev phone number');
-        return;
-      }
+    const otp = generateOtp();
+    otpStore.set(phone, { otp, expiresAt: Date.now() + OTP_EXPIRY_MS });
 
-      sendSuccess(res, { message: 'OTP sent successfully', phone });
-      return;
-    }
+    logger.info({ phone, otp: process.env.NODE_ENV !== 'production' ? otp : '[hidden]' }, 'OTP generated');
 
-    const { error } = await supabaseAdmin.auth.signInWithOtp({ phone });
-
-    if (error) {
-      logger.error({ error, phone }, 'Failed to send OTP');
-      sendError(res, 400, 'AUTH_PHONE_REQUIRED', 'Failed to send OTP. Please try again.');
-      return;
-    }
+    // In production, send OTP via SMS provider (Exotel, Twilio, etc.)
+    // For now, the OTP is stored in-memory and logged in dev mode.
 
     sendSuccess(res, { message: 'OTP sent successfully', phone });
   } catch (err) {
@@ -66,37 +48,19 @@ authRouter.post('/send-otp', validateSendOtp, async (req: Request, res: Response
 });
 
 // POST /api/v1/auth/verify-otp
-authRouter.post('/verify-otp', validateVerifyOtp, async (req: Request, res: Response): Promise<void> => {
+authRouter.post('/verify-otp', validateBody(verifyOtpSchema), async (req: Request, res: Response): Promise<void> => {
   try {
     const { phone, otp } = req.body as { phone: string; otp: string };
 
-    if (isDevAuthBypassEnabled()) {
-      if (!isDevAuthPhone(phone) || !isDevAuthOtp(otp)) {
-        sendError(res, 400, 'AUTH_INVALID_OTP', 'Invalid or expired OTP');
-        return;
-      }
-
-      const token = createDevAccessToken(phone);
-      sendSuccess(res, {
-        access_token: token,
-        refresh_token: token,
-        user: null,
-        is_new_user: true,
-      });
-      return;
-    }
-
-    const { data, error } = await supabaseAdmin.auth.verifyOtp({
-      phone,
-      token: otp,
-      type: 'sms',
-    });
-
-    if (error || !data.session) {
-      logger.warn({ error, phone }, 'OTP verification failed');
+    // Verify the OTP
+    const stored = otpStore.get(phone);
+    if (!stored || stored.otp !== otp || Date.now() > stored.expiresAt) {
       sendError(res, 400, 'AUTH_INVALID_OTP', 'Invalid or expired OTP');
       return;
     }
+
+    // OTP is valid — clear it
+    otpStore.delete(phone);
 
     // Check if user exists in our DB
     const existingUser = await prisma.user.findUnique({
@@ -104,9 +68,14 @@ authRouter.post('/verify-otp', validateVerifyOtp, async (req: Request, res: Resp
       include: { lawyer_profile: true },
     });
 
+    // Generate JWT tokens
+    const userId = existingUser?.id ?? '';
+    const accessToken = signAccessToken(userId, phone);
+    const refreshToken = signRefreshToken(userId, phone);
+
     sendSuccess(res, {
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
+      access_token: accessToken,
+      refresh_token: refreshToken,
       user: existingUser
         ? {
             id: existingUser.id,
@@ -141,23 +110,24 @@ authRouter.post('/set-role', authMiddleware, validateBody(setRoleSchema), async 
     // Check if user already exists
     const existing = await prisma.user.findUnique({ where: { phone } });
     if (existing) {
-      if (!isDevAuthBypassEnabled()) {
-        sendError(res, 409, 'VALIDATION_ERROR', 'User already registered');
+      // In dev, allow role update
+      if (process.env.NODE_ENV !== 'production') {
+        const updated = await prisma.user.update({
+          where: { id: existing.id },
+          data: { role },
+        });
+
+        sendSuccess(res, {
+          id: updated.id,
+          phone: updated.phone,
+          role: updated.role,
+          language_pref: updated.language_pref,
+          token_balance: updated.token_balance,
+        }, 200);
         return;
       }
 
-      const updated = await prisma.user.update({
-        where: { id: existing.id },
-        data: { role },
-      });
-
-      sendSuccess(res, {
-        id: updated.id,
-        phone: updated.phone,
-        role: updated.role,
-        language_pref: updated.language_pref,
-        token_balance: updated.token_balance,
-      }, 200);
+      sendError(res, 409, 'VALIDATION_ERROR', 'User already registered');
       return;
     }
 
@@ -171,12 +141,18 @@ authRouter.post('/set-role', authMiddleware, validateBody(setRoleSchema), async 
       },
     });
 
+    // Issue new tokens with the real user ID
+    const accessToken = signAccessToken(user.id, user.phone);
+    const refreshToken = signRefreshToken(user.id, user.phone);
+
     sendSuccess(res, {
       id: user.id,
       phone: user.phone,
       role: user.role,
       language_pref: user.language_pref,
       token_balance: user.token_balance,
+      access_token: accessToken,
+      refresh_token: refreshToken,
     }, 201);
   } catch (err) {
     logger.error({ err }, 'set-role error');

@@ -10,7 +10,7 @@ import { sendSuccess, sendError } from '../utils/response';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
 import multer from 'multer';
-import { supabaseAdmin } from '../utils/supabase';
+import { uploadFile, getPublicUrl } from '../utils/storage';
 import type { Request, Response } from 'express';
 
 export const lawyerRouter = Router();
@@ -29,29 +29,14 @@ const upload = multer({
   },
 });
 
-// Helper: upload file to Supabase Storage
-async function uploadToStorage(
+// Helper: upload file to local storage and return public URL
+async function uploadToLocalStorage(
   buffer: Buffer,
   fileName: string,
-  mimeType: string,
-  bucket: string
+  mimeType: string
 ): Promise<string> {
-  const { data, error } = await supabaseAdmin.storage
-    .from(bucket)
-    .upload(fileName, buffer, {
-      contentType: mimeType,
-      upsert: true,
-    });
-
-  if (error) {
-    throw new Error(`Storage upload failed: ${error.message}`);
-  }
-
-  const { data: urlData } = supabaseAdmin.storage
-    .from(bucket)
-    .getPublicUrl(data.path);
-
-  return urlData.publicUrl;
+  const storedPath = await uploadFile(buffer, fileName, mimeType);
+  return getPublicUrl(storedPath);
 }
 
 // POST /api/v1/lawyer/register
@@ -105,13 +90,13 @@ lawyerRouter.post(
 
       const certFile = files['enrollment_cert'][0];
       const certFileName = `lawyers/${userId}/enrollment_cert_${Date.now()}.${certFile.originalname.split('.').pop()}`;
-      const certUrl = await uploadToStorage(certFile.buffer, certFileName, certFile.mimetype, 'lawyer-documents');
+      const certUrl = await uploadToLocalStorage(certFile.buffer, certFileName, certFile.mimetype);
 
       let idProofUrl: string | null = null;
       if (files['id_proof']?.[0]) {
         const idFile = files['id_proof'][0];
         const idFileName = `lawyers/${userId}/id_proof_${Date.now()}.${idFile.originalname.split('.').pop()}`;
-        idProofUrl = await uploadToStorage(idFile.buffer, idFileName, idFile.mimetype, 'lawyer-documents');
+        idProofUrl = await uploadToLocalStorage(idFile.buffer, idFileName, idFile.mimetype);
       }
 
       // Create lawyer profile

@@ -3,7 +3,7 @@ import { authMiddleware, requireRegistered } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
-import { supabaseAdmin } from '../utils/supabase';
+import { uploadFile, deleteFile, getPublicUrl } from '../utils/storage';
 import multer from 'multer';
 import type { Request, Response } from 'express';
 
@@ -46,37 +46,24 @@ evidenceRouter.post(
         return;
       }
 
-      // Upload to Supabase Storage
+      // Upload to local filesystem
       const fileName = `evidence/${req.user!.id}/${doc_type}_${Date.now()}.${file.originalname.split('.').pop()}`;
-      const { data, error } = await supabaseAdmin.storage
-        .from('user-documents')
-        .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false,
-        });
-
-      if (error) {
-        logger.error({ err: error }, 'Supabase storage upload failed');
-        sendError(res, 500, 'EVIDENCE_UPLOAD_FAILED', 'Failed to upload document');
-        return;
-      }
-
-      const { data: urlData } = supabaseAdmin.storage
-        .from('user-documents')
-        .getPublicUrl(data.path);
+      const storedPath = await uploadFile(file.buffer, fileName, file.mimetype);
+      const publicUrl = getPublicUrl(storedPath);
 
       // Save record in DB
       const doc = await prisma.evidenceDocument.create({
         data: {
           user_id: req.user!.id,
           doc_type,
-          file_url: urlData.publicUrl,
+          file_url: publicUrl,
           file_name: file.originalname,
           is_encrypted: false,
           metadata: {
             size_bytes: file.size,
             mime_type: file.mimetype,
             uploaded_at: new Date().toISOString(),
+            storage_path: storedPath,
           },
         },
       });
@@ -139,12 +126,11 @@ evidenceRouter.delete(
         return;
       }
 
-      // Delete from storage
-      const storagePath = doc.file_url.split('/user-documents/')[1];
+      // Delete from local storage
+      const metadata = doc.metadata as Record<string, unknown>;
+      const storagePath = (metadata?.storage_path as string) ?? '';
       if (storagePath) {
-        await supabaseAdmin.storage
-          .from('user-documents')
-          .remove([storagePath]);
+        await deleteFile(storagePath);
       }
 
       // Delete from DB

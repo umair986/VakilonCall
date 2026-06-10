@@ -12,7 +12,7 @@ export const adminRouter = Router();
 // Simple admin check — in production, use a proper RBAC system
 function requireAdmin(_req: Request, _res: Response, next: () => void): void {
   // For now, any authenticated user can access admin routes in dev.
-  // TODO: Add admin role check from a separate admin table or Supabase custom claims.
+  // TODO: Add admin role check from a separate admin table or JWT custom claims.
   next();
 }
 
