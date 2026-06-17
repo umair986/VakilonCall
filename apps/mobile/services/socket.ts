@@ -1,10 +1,6 @@
 import { io, Socket } from 'socket.io-client';
-import Constants from 'expo-constants';
 import { useAuthStore } from '../stores/authStore';
-
-const API_BASE_URL =
-  (Constants.expoConfig?.extra as Record<string, string> | undefined)?.API_BASE_URL ??
-  'http://localhost:3000';
+import { getApiBaseUrl } from './api';
 
 let socket: Socket | null = null;
 
@@ -19,7 +15,7 @@ export function connectSocket(): Socket {
 
   const token = useAuthStore.getState().accessToken;
 
-  socket = io(API_BASE_URL, {
+  socket = io(getApiBaseUrl(), {
     auth: { token },
     transports: ['websocket'],
     reconnection: true,

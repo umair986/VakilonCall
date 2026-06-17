@@ -36,14 +36,18 @@
       "expo-location",
       "expo-image-picker",
       "expo-document-picker",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
         "projectId": ""
       },
       "SUPABASE_URL": "",
-      "SUPABASE_ANON_KEY": ""
+      "SUPABASE_ANON_KEY": "",
+      "GOOGLE_WEB_CLIENT_ID": "216376261918-tc5em1hn6l3q2tet33q8caq65b9dh3hm.apps.googleusercontent.com",
+      "GOOGLE_ANDROID_CLIENT_ID": "",
+      "GOOGLE_IOS_CLIENT_ID": ""
     }
   }
 }

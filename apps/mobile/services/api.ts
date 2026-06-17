@@ -86,8 +86,16 @@ export const api = {
       is_new_user: boolean;
     }>('POST', API_PATHS.AUTH.VERIFY_OTP, { phone, otp }),
 
+  googleLogin: (id_token: string) =>
+    request<{
+      access_token: string;
+      refresh_token: string;
+      user: Record<string, unknown> | null;
+      is_new_user: boolean;
+    }>('POST', API_PATHS.AUTH.GOOGLE_LOGIN, { id_token }),
+
   setRole: (role: 'user' | 'lawyer') =>
-    request<{ id: string; phone: string; role: string }>(
+    request<{ id: string; phone: string; email?: string; role: string }>(
       'POST', API_PATHS.AUTH.SET_ROLE, { role }
     ),
 
@@ -152,6 +160,28 @@ export const api = {
   toggleOnline: (is_online: boolean) =>
     request<{ is_online: boolean }>(
       'POST', API_PATHS.LAWYER.TOGGLE_ONLINE, { is_online }
+    ),
+
+  getLawyerEarnings: () =>
+    request<{
+      total_earnings: number;
+      wallet_balance: number;
+      pending_payout: number;
+      total_calls: number;
+      avg_rating: number;
+      recent_calls: Array<{
+        id: string;
+        scenario: string;
+        duration_min: number;
+        earned: number;
+        date: string;
+        rating: number | null;
+      }>;
+    }>('GET', API_PATHS.LAWYER.EARNINGS),
+
+  updateLawyerProfile: (data: { languages?: string[]; scenario_tags?: string[] }) =>
+    request<{ languages: string[]; scenario_tags: string[] }>(
+      'PATCH', API_PATHS.LAWYER.PROFILE, data
     ),
 
   registerLawyer: async (formData: FormData) => {

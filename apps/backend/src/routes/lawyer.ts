@@ -236,3 +236,69 @@ lawyerRouter.post(
     }
   }
 );
+
+// GET /api/v1/lawyer/earnings — Lawyer earnings + recent calls
+lawyerRouter.get(
+  '/earnings',
+  authMiddleware,
+  requireRegistered,
+  requireLawyer,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+
+      // Fetch lawyer profile for summary stats
+      const profile = await prisma.lawyerProfile.findUnique({
+        where: { user_id: userId },
+        select: {
+          total_earnings: true,
+          wallet_balance: true,
+          total_calls: true,
+          avg_rating: true,
+        },
+      });
+
+      if (!profile) {
+        sendError(res, 404, 'USER_NOT_FOUND', 'Lawyer profile not found');
+        return;
+      }
+
+      // Fetch pending payout total
+      const pendingPayouts = await prisma.lawyerPayout.aggregate({
+        where: { lawyer_id: userId, status: { in: ['pending', 'processing'] } },
+        _sum: { amount: true },
+      });
+
+      // Fetch recent completed calls for this lawyer
+      const recentCalls = await prisma.callSession.findMany({
+        where: { lawyer_id: userId, status: 'completed' },
+        orderBy: { ended_at: 'desc' },
+        take: 20,
+        include: {
+          rating: { select: { stars: true } },
+        },
+      });
+
+      sendSuccess(res, {
+        total_earnings: Number(profile.total_earnings),
+        wallet_balance: Number(profile.wallet_balance),
+        pending_payout: Number(pendingPayouts._sum.amount ?? 0),
+        total_calls: profile.total_calls,
+        avg_rating: Number(profile.avg_rating),
+        recent_calls: recentCalls.map((c) => ({
+          id: c.id,
+          scenario: c.scenario,
+          duration_min: c.recording_duration_sec
+            ? Math.round(c.recording_duration_sec / 60)
+            : 0,
+          earned: Number(c.lawyer_payout),
+          date: (c.ended_at ?? c.created_at).toISOString(),
+          rating: c.rating?.stars ?? null,
+        })),
+      });
+    } catch (err) {
+      logger.error({ err }, 'lawyer earnings error');
+      sendError(res, 500, 'INTERNAL_ERROR', 'Failed to fetch earnings');
+    }
+  }
+);

@@ -25,6 +25,10 @@ export const setRoleSchema = z.object({
   role: z.enum(['user', 'lawyer']),
 });
 
+export const googleLoginSchema = z.object({
+  id_token: z.string().min(1, 'Google ID token is required'),
+});
+
 // =============================================
 // USER SCHEMAS
 // =============================================
@@ -191,6 +195,7 @@ export const payoutRequestSchema = z.object({
 export type SendOtpInput = z.infer<typeof sendOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type SetRoleInput = z.infer<typeof setRoleSchema>;
+export type GoogleLoginInput = z.infer<typeof googleLoginSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type LawyerRegisterInput = z.infer<typeof lawyerRegisterSchema>;
 export type UpdateLawyerProfileInput = z.infer<typeof updateLawyerProfileSchema>;

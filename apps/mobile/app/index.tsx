@@ -1,9 +1,18 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { SafeAreaView, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Button, Icon, Text } from "react-native-paper";
 import { useRouter } from "expo-router";
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+import Constants from "expo-constants";
+
+WebBrowser.maybeCompleteAuthSession();
 import { radius, spacing, typography } from "../utils/theme";
+import { useAuthStore } from "../stores/authStore";
+import { useTokenStore } from "../stores/tokenStore";
+import { api } from "../services/api";
+import type { LanguageCode } from "@vakiloncall/shared";
 
 const palette = {
   white: "#FFFFFF",
@@ -15,13 +24,104 @@ const palette = {
   danger: "#B42318",
 };
 
+const GOOGLE_WEB_CLIENT_ID =
+  (Constants.expoConfig?.extra as Record<string, string> | undefined)
+    ?.GOOGLE_WEB_CLIENT_ID ?? "";
+const GOOGLE_ANDROID_CLIENT_ID =
+  (Constants.expoConfig?.extra as Record<string, string> | undefined)
+    ?.GOOGLE_ANDROID_CLIENT_ID ?? "";
+const GOOGLE_IOS_CLIENT_ID =
+  (Constants.expoConfig?.extra as Record<string, string> | undefined)
+    ?.GOOGLE_IOS_CLIENT_ID ?? "";
+
 export default function LoginScreen(): React.JSX.Element {
   const router = useRouter();
+  const { setTokens, setUser, setIsNewUser, setLoading } = useAuthStore();
+  const { setBalance } = useTokenStore();
   const [message, setMessage] = useState("");
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (request?.redirectUri) {
+      console.log('Redirect URI:', request.redirectUri);
+    }
+  }, [request?.redirectUri]);
+
+  const handleGoogleResponse = useCallback(async () => {
+    if (response?.type !== "success") return;
+
+    const idToken = response.params.id_token;
+    if (!idToken) {
+      setMessage("Google sign-in failed — no ID token received.");
+      setIsGoogleLoading(false);
+      return;
+    }
+
+    setIsGoogleLoading(true);
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const result = await api.googleLogin(idToken);
+
+      if (result.success) {
+        setTokens(result.data.access_token, result.data.refresh_token);
+
+        if (result.data.is_new_user || !result.data.user) {
+          setIsNewUser(true);
+          router.replace("/role-select");
+        } else {
+          const userData = result.data.user;
+          setUser({
+            id: userData.id as string,
+            phone: (userData.phone as string) ?? null,
+            email: (userData.email as string) ?? null,
+            google_id: (userData.google_id as string) ?? null,
+            full_name: (userData.full_name as string) ?? null,
+            role: userData.role as "user" | "lawyer",
+            language_pref: (userData.language_pref as LanguageCode) ?? "en",
+            token_balance: (userData.token_balance as number) ?? 0,
+            is_active: true,
+            is_banned: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          setBalance((userData.token_balance as number) ?? 0);
+          router.replace(
+            userData.role === "lawyer" ? "/lawyer-home" : "/home"
+          );
+        }
+      } else {
+        setMessage(result.error.message);
+      }
+    } catch {
+      setMessage("Google sign-in failed. Please try again.");
+    } finally {
+      setIsGoogleLoading(false);
+      setLoading(false);
+    }
+  }, [response, router, setTokens, setUser, setIsNewUser, setLoading, setBalance]);
+
+  useEffect(() => {
+    void handleGoogleResponse();
+  }, [handleGoogleResponse]);
 
   const handleGoogle = useCallback((): void => {
-    setMessage("Google sign-in frontend is ready. Connect OAuth next.");
-  }, []);
+    if (!GOOGLE_WEB_CLIENT_ID || GOOGLE_WEB_CLIENT_ID.includes("your-google")) {
+      setMessage(
+        "Google Client ID not configured. Update GOOGLE_WEB_CLIENT_ID in app.json."
+      );
+      return;
+    }
+    setMessage("");
+    void promptAsync();
+  }, [promptAsync]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -45,6 +145,8 @@ export default function LoginScreen(): React.JSX.Element {
             style={[styles.authButton, styles.googleButton]}
             contentStyle={styles.authButtonContent}
             labelStyle={styles.authButtonLabel}
+            loading={isGoogleLoading}
+            disabled={isGoogleLoading || !request}
           >
             Continue with Google
           </Button>

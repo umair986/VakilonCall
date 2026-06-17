@@ -5,7 +5,9 @@
 
 export interface IUser {
   id: string;
-  phone: string;
+  phone: string | null;
+  email: string | null;
+  google_id: string | null;
   full_name: string | null;
   role: UserRole;
   language_pref: LanguageCode;
@@ -267,6 +269,7 @@ export type ErrorCode =
   | 'AUTH_EXPIRED_OTP'
   | 'AUTH_PHONE_REQUIRED'
   | 'AUTH_UNAUTHORIZED'
+  | 'AUTH_GOOGLE_FAILED'
   | 'USER_NOT_FOUND'
   | 'USER_BANNED'
   | 'LAWYER_NOT_VERIFIED'

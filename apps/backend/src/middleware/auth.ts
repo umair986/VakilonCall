@@ -14,6 +14,36 @@ declare global {
   }
 }
 
+function mapDbUserToIUser(dbUser: {
+  id: string;
+  phone: string | null;
+  email: string | null;
+  google_id: string | null;
+  full_name: string | null;
+  role: string;
+  language_pref: string;
+  token_balance: number;
+  is_active: boolean;
+  is_banned: boolean;
+  created_at: Date;
+  updated_at: Date;
+}): IUser {
+  return {
+    id: dbUser.id,
+    phone: dbUser.phone,
+    email: dbUser.email,
+    google_id: dbUser.google_id,
+    full_name: dbUser.full_name,
+    role: dbUser.role as IUser['role'],
+    language_pref: dbUser.language_pref as IUser['language_pref'],
+    token_balance: dbUser.token_balance,
+    is_active: dbUser.is_active,
+    is_banned: dbUser.is_banned,
+    created_at: dbUser.created_at.toISOString(),
+    updated_at: dbUser.updated_at.toISOString(),
+  };
+}
+
 // Authenticates requests using local JWT from Authorization header
 export async function authMiddleware(
   req: Request,
@@ -54,19 +84,7 @@ export async function authMiddleware(
           return;
         }
 
-        req.user = {
-          id: dbUser.id,
-          phone: dbUser.phone,
-          full_name: dbUser.full_name,
-          role: dbUser.role as IUser['role'],
-          language_pref: dbUser.language_pref as IUser['language_pref'],
-          token_balance: dbUser.token_balance,
-          is_active: dbUser.is_active,
-          is_banned: dbUser.is_banned,
-          created_at: dbUser.created_at.toISOString(),
-          updated_at: dbUser.updated_at.toISOString(),
-        };
-
+        req.user = mapDbUserToIUser(dbUser);
         next();
         return;
       }
@@ -85,19 +103,25 @@ export async function authMiddleware(
           return;
         }
 
-        req.user = {
-          id: dbUser.id,
-          phone: dbUser.phone,
-          full_name: dbUser.full_name,
-          role: dbUser.role as IUser['role'],
-          language_pref: dbUser.language_pref as IUser['language_pref'],
-          token_balance: dbUser.token_balance,
-          is_active: dbUser.is_active,
-          is_banned: dbUser.is_banned,
-          created_at: dbUser.created_at.toISOString(),
-          updated_at: dbUser.updated_at.toISOString(),
-        };
+        req.user = mapDbUserToIUser(dbUser);
+        next();
+        return;
+      }
+    }
 
+    // Try to find by email from JWT payload (Google OAuth users)
+    if (payload.email) {
+      const dbUser = await prisma.user.findUnique({
+        where: { email: payload.email },
+      });
+
+      if (dbUser) {
+        if (dbUser.is_banned) {
+          sendError(res, 403, 'USER_BANNED', 'Your account has been suspended');
+          return;
+        }
+
+        req.user = mapDbUserToIUser(dbUser);
         next();
         return;
       }
@@ -106,7 +130,9 @@ export async function authMiddleware(
     // Brand new user — attach minimal info so set-role endpoint can create the user
     req.user = {
       id: '',
-      phone: payload.phone ?? '',
+      phone: payload.phone ?? null,
+      email: payload.email ?? null,
+      google_id: null,
       full_name: null,
       role: 'user',
       language_pref: 'en',

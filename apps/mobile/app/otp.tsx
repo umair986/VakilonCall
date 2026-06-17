@@ -91,7 +91,9 @@ export default function OtpScreen(): React.JSX.Element {
           const userData = result.data.user as Record<string, unknown>;
           setUser({
             id: userData.id as string,
-            phone: userData.phone as string,
+            phone: (userData.phone as string) ?? null,
+            email: (userData.email as string) ?? null,
+            google_id: (userData.google_id as string) ?? null,
             full_name: (userData.full_name as string) ?? null,
             role: userData.role as 'user' | 'lawyer',
             language_pref: (userData.language_pref as LanguageCode) ?? 'en',

@@ -1,43 +1,26 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import { CALL_ECONOMICS } from '@vakiloncall/shared';
+import { CALL_ECONOMICS, SCENARIOS } from '@vakiloncall/shared';
 import { brandColors, spacing, typography } from '../utils/theme';
 import { LegalCard, MetricTile, PrimaryAction, Screen, ScreenHeader } from '../components/ui';
+import { api } from '../services/api';
 
-const MOCK_EARNINGS = {
-  total_earnings: 1280,
-  wallet_balance: 512,
-  pending_payout: 0,
-  total_calls: 40,
-  avg_rating: 4.6,
-  recent_calls: [
-    {
-      id: '1',
-      scenario: 'Traffic Stop',
-      duration_min: 12,
-      earned: CALL_ECONOMICS.LAWYER_PAYOUT_INR,
-      date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      rating: 5,
-    },
-    {
-      id: '2',
-      scenario: 'FIR Refusal',
-      duration_min: 8,
-      earned: CALL_ECONOMICS.LAWYER_PAYOUT_INR,
-      date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      rating: 4,
-    },
-    {
-      id: '3',
-      scenario: 'Digital Arrest Scam',
-      duration_min: 15,
-      earned: CALL_ECONOMICS.LAWYER_PAYOUT_INR,
-      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      rating: 5,
-    },
-  ],
-};
+interface EarningsData {
+  total_earnings: number;
+  wallet_balance: number;
+  pending_payout: number;
+  total_calls: number;
+  avg_rating: number;
+  recent_calls: Array<{
+    id: string;
+    scenario: string;
+    duration_min: number;
+    earned: number;
+    date: string;
+    rating: number | null;
+  }>;
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -50,8 +33,59 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
+function scenarioLabel(type: string): string {
+  return SCENARIOS.find((s) => s.type === type)?.label ?? type;
+}
+
 export default function EarningsScreen(): React.JSX.Element {
-  const [earnings] = useState(MOCK_EARNINGS);
+  const [earnings, setEarnings] = useState<EarningsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadEarnings = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const result = await api.getLawyerEarnings();
+      if (result.success) {
+        setEarnings(result.data);
+      } else {
+        setError(result.error?.message ?? 'Failed to load earnings');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadEarnings();
+  }, [loadEarnings]);
+
+  if (isLoading) {
+    return (
+      <>
+        <ScreenHeader title="Earnings" subtitle="Lawyer payouts" back />
+        <Screen centered>
+          <ActivityIndicator size="large" color={brandColors.text} />
+          <Text style={styles.loadingText}>Loading earnings...</Text>
+        </Screen>
+      </>
+    );
+  }
+
+  if (error || !earnings) {
+    return (
+      <>
+        <ScreenHeader title="Earnings" subtitle="Lawyer payouts" back />
+        <Screen centered>
+          <Text style={styles.errorText}>{error || 'Failed to load earnings.'}</Text>
+          <PrimaryAction onPress={loadEarnings} icon="refresh">Retry</PrimaryAction>
+        </Screen>
+      </>
+    );
+  }
 
   return (
     <>
@@ -59,17 +93,17 @@ export default function EarningsScreen(): React.JSX.Element {
       <Screen scroll>
         <LegalCard style={styles.heroCard}>
           <Text style={styles.sectionLabel}>Total earnings</Text>
-          <Text style={styles.heroValue}>Rs {earnings.total_earnings.toLocaleString('en-IN')}</Text>
+          <Text style={styles.heroValue}>₹{earnings.total_earnings.toLocaleString('en-IN')}</Text>
           <View style={styles.heroStats}>
             <Text style={styles.heroMeta}>{earnings.total_calls} calls</Text>
-            <Text style={styles.heroMeta}>{earnings.avg_rating} rating</Text>
-            <Text style={styles.heroMeta}>Rs {CALL_ECONOMICS.LAWYER_PAYOUT_INR}/call</Text>
+            <Text style={styles.heroMeta}>{earnings.avg_rating.toFixed(1)} rating</Text>
+            <Text style={styles.heroMeta}>₹{CALL_ECONOMICS.LAWYER_PAYOUT_INR}/call</Text>
           </View>
         </LegalCard>
 
         <View style={styles.metricsRow}>
-          <MetricTile label="Available" value={`Rs ${earnings.wallet_balance}`} />
-          <MetricTile label="Pending" value={`Rs ${earnings.pending_payout}`} />
+          <MetricTile label="Available" value={`₹${earnings.wallet_balance}`} />
+          <MetricTile label="Pending" value={`₹${earnings.pending_payout}`} />
         </View>
 
         <PrimaryAction
@@ -80,22 +114,28 @@ export default function EarningsScreen(): React.JSX.Element {
           Request Payout
         </PrimaryAction>
         {earnings.wallet_balance < 100 ? (
-          <Text style={styles.payoutNote}>Minimum Rs 100 required for withdrawal.</Text>
+          <Text style={styles.payoutNote}>Minimum ₹100 required for withdrawal.</Text>
         ) : null}
 
         <Text style={styles.sectionTitle}>Recent consultations</Text>
         <View style={styles.callList}>
-          {earnings.recent_calls.map((call) => (
-            <LegalCard key={call.id} style={styles.callCard}>
-              <View style={styles.callHeader}>
-                <Text style={styles.callScenario}>{call.scenario}</Text>
-                <Text style={styles.callEarned}>+Rs {call.earned}</Text>
-              </View>
-              <Text style={styles.callMeta}>
-                {call.duration_min} min | {call.rating}/5 rating | {formatDate(call.date)}
-              </Text>
+          {earnings.recent_calls.length === 0 ? (
+            <LegalCard style={styles.callCard}>
+              <Text style={styles.emptyText}>No completed calls yet. Go online to start receiving requests.</Text>
             </LegalCard>
-          ))}
+          ) : (
+            earnings.recent_calls.map((call) => (
+              <LegalCard key={call.id} style={styles.callCard}>
+                <View style={styles.callHeader}>
+                  <Text style={styles.callScenario}>{scenarioLabel(call.scenario)}</Text>
+                  <Text style={styles.callEarned}>+₹{call.earned}</Text>
+                </View>
+                <Text style={styles.callMeta}>
+                  {call.duration_min} min{call.rating != null ? ` | ${call.rating}/5 rating` : ''} | {formatDate(call.date)}
+                </Text>
+              </LegalCard>
+            ))
+          )}
         </View>
 
         <LegalCard variant="notice" style={styles.infoCard}>
@@ -103,7 +143,7 @@ export default function EarningsScreen(): React.JSX.Element {
           <Text style={styles.infoText}>
             Earnings are held for {CALL_ECONOMICS.PAYOUT_HOLD_DAYS} days before withdrawal.
           </Text>
-          <Text style={styles.infoText}>Payouts are expected via UPI or bank transfer.</Text>
+          <Text style={styles.infoText}>Payouts are processed via UPI or bank transfer.</Text>
         </LegalCard>
       </Screen>
     </>
@@ -182,6 +222,11 @@ const styles = StyleSheet.create({
     color: brandColors.textMuted,
     marginTop: spacing.xs,
   },
+  emptyText: {
+    ...typography.bodySmall,
+    color: brandColors.textSecondary,
+    textAlign: 'center',
+  },
   infoCard: {
     gap: spacing.xs,
     marginTop: spacing.lg,
@@ -194,5 +239,16 @@ const styles = StyleSheet.create({
   infoText: {
     ...typography.caption,
     color: brandColors.textSecondary,
+  },
+  loadingText: {
+    ...typography.bodySmall,
+    color: brandColors.textMuted,
+    marginTop: spacing.md,
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: brandColors.errorLight,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
 });

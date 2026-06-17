@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -39,13 +40,31 @@ app.set('io', io);
 // =============================================
 // GLOBAL MIDDLEWARE
 // =============================================
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        connectSrc: ["'self'", 'https://exp.host'],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+      },
+    },
+  })
+);
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files (evidence, lawyer documents)
 app.use('/uploads', express.static(getUploadsDir()));
+
+// Serve admin panel
+app.get('/admin', (_req, res) => {
+  res.sendFile(path.resolve(__dirname, '../public/admin.html'));
+});
 
 // Global rate limiter
 app.use(

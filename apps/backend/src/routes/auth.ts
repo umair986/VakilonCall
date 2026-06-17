@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sendOtpSchema, verifyOtpSchema, setRoleSchema } from '@vakiloncall/shared';
+import { sendOtpSchema, verifyOtpSchema, setRoleSchema, googleLoginSchema } from '@vakiloncall/shared';
 import { validateBody } from '../middleware/validate';
 import { authMiddleware } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
@@ -7,8 +7,15 @@ import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
 import { signAccessToken, signRefreshToken } from '../utils/jwt';
 import type { Request, Response } from 'express';
+import { OAuth2Client } from 'google-auth-library';
 
 export const authRouter = Router();
+
+// =============================================
+// Google OAuth client for ID token verification
+// =============================================
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? '';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // =============================================
 // In-memory OTP store for development
@@ -80,6 +87,7 @@ authRouter.post('/verify-otp', validateBody(verifyOtpSchema), async (req: Reques
         ? {
             id: existingUser.id,
             phone: existingUser.phone,
+            email: existingUser.email,
             full_name: existingUser.full_name,
             role: existingUser.role,
             language_pref: existingUser.language_pref,
@@ -96,19 +104,165 @@ authRouter.post('/verify-otp', validateBody(verifyOtpSchema), async (req: Reques
   }
 });
 
+// POST /api/v1/auth/google
+authRouter.post('/google', validateBody(googleLoginSchema), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id_token } = req.body as { id_token: string };
+
+    // Verify the Google ID token
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: id_token,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      logger.error({ err: verifyErr }, 'Google token verification failed');
+      sendError(res, 401, 'AUTH_GOOGLE_FAILED', 'Invalid Google token');
+      return;
+    }
+
+    if (!payload || !payload.sub) {
+      sendError(res, 401, 'AUTH_GOOGLE_FAILED', 'Invalid Google token payload');
+      return;
+    }
+
+    const googleId = payload.sub;
+    const email = payload.email ?? null;
+    const fullName = payload.name ?? null;
+
+    logger.info({ googleId, email }, 'Google sign-in attempt');
+
+    // Check if user already exists by google_id
+    let existingUser = await prisma.user.findUnique({
+      where: { google_id: googleId },
+      include: { lawyer_profile: true },
+    });
+
+    // If not found by google_id, try by email (user might have been created via another method)
+    if (!existingUser && email) {
+      existingUser = await prisma.user.findUnique({
+        where: { email },
+        include: { lawyer_profile: true },
+      });
+
+      // Link the google_id to the existing email-based user
+      if (existingUser) {
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { google_id: googleId },
+        });
+      }
+    }
+
+    const isNewUser = !existingUser;
+
+    if (isNewUser) {
+      // Create a new user with Google info — role will be set later via set-role
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          google_id: googleId,
+          full_name: fullName,
+          role: 'user', // default, will be updated via set-role
+          language_pref: 'en',
+          token_balance: 0,
+        },
+      });
+
+      const accessToken = signAccessToken(newUser.id, undefined, email ?? undefined);
+      const refreshToken = signRefreshToken(newUser.id, undefined, email ?? undefined);
+
+      sendSuccess(res, {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        user: {
+          id: newUser.id,
+          phone: newUser.phone,
+          email: newUser.email,
+          full_name: newUser.full_name,
+          role: newUser.role,
+          language_pref: newUser.language_pref,
+          token_balance: newUser.token_balance,
+          has_lawyer_profile: false,
+          verification_status: null,
+        },
+        is_new_user: true,
+      }, 201);
+      return;
+    }
+
+    // Existing user — update full_name if it was previously null
+    if (!existingUser) {
+      // Should not reach here — handled by isNewUser block above
+      sendError(res, 500, 'INTERNAL_ERROR', 'Unexpected state');
+      return;
+    }
+
+    if (!existingUser.full_name && fullName) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { full_name: fullName },
+      });
+    }
+
+    const accessToken = signAccessToken(
+      existingUser.id,
+      existingUser.phone ?? undefined,
+      existingUser.email ?? undefined
+    );
+    const refreshToken = signRefreshToken(
+      existingUser.id,
+      existingUser.phone ?? undefined,
+      existingUser.email ?? undefined
+    );
+
+    sendSuccess(res, {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: {
+        id: existingUser.id,
+        phone: existingUser.phone,
+        email: existingUser.email,
+        full_name: existingUser.full_name ?? fullName,
+        role: existingUser.role,
+        language_pref: existingUser.language_pref,
+        token_balance: existingUser.token_balance,
+        has_lawyer_profile: !!existingUser.lawyer_profile,
+        verification_status: existingUser.lawyer_profile?.verification_status ?? null,
+      },
+      is_new_user: false,
+    });
+  } catch (err) {
+    logger.error({ err }, 'google auth error');
+    sendError(res, 500, 'INTERNAL_ERROR', 'Google authentication failed');
+  }
+});
+
 // POST /api/v1/auth/set-role (requires auth)
 authRouter.post('/set-role', authMiddleware, validateBody(setRoleSchema), async (req: Request, res: Response): Promise<void> => {
   try {
     const { role } = req.body as { role: 'user' | 'lawyer' };
+    const userId = req.user?.id;
     const phone = req.user?.phone;
+    const email = req.user?.email;
 
-    if (!phone) {
-      sendError(res, 400, 'AUTH_PHONE_REQUIRED', 'Phone number not found');
+    if (!userId && !phone && !email) {
+      sendError(res, 400, 'AUTH_PHONE_REQUIRED', 'User identity not found');
       return;
     }
 
     // Check if user already exists
-    const existing = await prisma.user.findUnique({ where: { phone } });
+    let existing;
+    if (userId) {
+      existing = await prisma.user.findUnique({ where: { id: userId } });
+    } else if (phone) {
+      existing = await prisma.user.findUnique({ where: { phone } });
+    } else if (email) {
+      existing = await prisma.user.findUnique({ where: { email } });
+    }
+
     if (existing) {
       // In dev, allow role update
       if (process.env.NODE_ENV !== 'production') {
@@ -117,12 +271,18 @@ authRouter.post('/set-role', authMiddleware, validateBody(setRoleSchema), async 
           data: { role },
         });
 
+        const accessToken = signAccessToken(updated.id, updated.phone ?? undefined, updated.email ?? undefined);
+        const refreshToken = signRefreshToken(updated.id, updated.phone ?? undefined, updated.email ?? undefined);
+
         sendSuccess(res, {
           id: updated.id,
           phone: updated.phone,
+          email: updated.email,
           role: updated.role,
           language_pref: updated.language_pref,
           token_balance: updated.token_balance,
+          access_token: accessToken,
+          refresh_token: refreshToken,
         }, 200);
         return;
       }
@@ -131,7 +291,12 @@ authRouter.post('/set-role', authMiddleware, validateBody(setRoleSchema), async 
       return;
     }
 
-    // Create the user in our database
+    // Create the user in our database (only for phone-based flow; Google users are already created)
+    if (!phone) {
+      sendError(res, 400, 'AUTH_PHONE_REQUIRED', 'Phone number required for new user creation');
+      return;
+    }
+
     const user = await prisma.user.create({
       data: {
         phone,
@@ -142,8 +307,8 @@ authRouter.post('/set-role', authMiddleware, validateBody(setRoleSchema), async 
     });
 
     // Issue new tokens with the real user ID
-    const accessToken = signAccessToken(user.id, user.phone);
-    const refreshToken = signRefreshToken(user.id, user.phone);
+    const accessToken = signAccessToken(user.id, user.phone ?? undefined);
+    const refreshToken = signRefreshToken(user.id, user.phone ?? undefined);
 
     sendSuccess(res, {
       id: user.id,
@@ -181,6 +346,7 @@ authRouter.get('/me', authMiddleware, async (req: Request, res: Response): Promi
     sendSuccess(res, {
       id: user.id,
       phone: user.phone,
+      email: user.email,
       full_name: user.full_name,
       role: user.role,
       language_pref: user.language_pref,
@@ -205,3 +371,32 @@ authRouter.get('/me', authMiddleware, async (req: Request, res: Response): Promi
     sendError(res, 500, 'INTERNAL_ERROR', 'Failed to fetch profile');
   }
 });
+
+// POST /api/v1/auth/push-token — Register Expo push notification token
+authRouter.post(
+  '/push-token',
+  authMiddleware,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { push_token } = req.body as { push_token: string };
+
+      if (
+        !push_token ||
+        (!push_token.startsWith('ExponentPushToken[') && !push_token.startsWith('ExpoPushToken['))
+      ) {
+        sendError(res, 400, 'VALIDATION_ERROR', 'Invalid Expo push token');
+        return;
+      }
+
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { push_token },
+      });
+
+      sendSuccess(res, { registered: true });
+    } catch (err) {
+      logger.error({ err }, 'push-token registration error');
+      sendError(res, 500, 'INTERNAL_ERROR', 'Failed to register push token');
+    }
+  }
+);

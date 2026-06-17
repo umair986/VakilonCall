@@ -51,7 +51,9 @@ export default function RoleSelectScreen(): React.JSX.Element {
       if (result.success) {
         setUser({
           id: result.data.id,
-          phone: result.data.phone,
+          phone: (result.data.phone as string) ?? null,
+          email: (result.data as Record<string, unknown>).email as string ?? null,
+          google_id: null,
           full_name: null,
           role: result.data.role as RoleOption,
           language_pref: 'en',

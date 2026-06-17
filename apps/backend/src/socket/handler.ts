@@ -1,8 +1,9 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 import { prisma } from '../utils/prisma';
 import { logger } from '../utils/logger';
-import { WS_EVENTS, CALL_ECONOMICS } from '@vakiloncall/shared';
+import { WS_EVENTS, CALL_ECONOMICS, SCENARIOS } from '@vakiloncall/shared';
 import { verifyAccessToken } from '../utils/jwt';
+import { sendPushNotifications } from '../utils/push';
 
 // Track online lawyers: Map<lawyerUserId, socketId>
 const onlineLawyers = new Map<string, string>();
@@ -16,18 +17,34 @@ const matchingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
  */
 async function authenticateSocket(
   socket: Socket
-): Promise<{ id: string; phone: string; role: string } | null> {
+): Promise<{ id: string; phone: string | null; role: string } | null> {
   try {
     const token = socket.handshake.auth?.token as string | undefined;
     if (!token) return null;
 
     const payload = verifyAccessToken(token);
-    if (!payload || !payload.phone) return null;
+    if (!payload) return null;
 
-    const dbUser = await prisma.user.findUnique({
-      where: { phone: payload.phone },
-      select: { id: true, phone: true, role: true, is_active: true, is_banned: true },
-    });
+    // Prefer userId lookup; fall back to phone then email
+    let dbUser = null;
+    if (payload.userId) {
+      dbUser = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, phone: true, role: true, is_active: true, is_banned: true },
+      });
+    }
+    if (!dbUser && payload.phone) {
+      dbUser = await prisma.user.findUnique({
+        where: { phone: payload.phone },
+        select: { id: true, phone: true, role: true, is_active: true, is_banned: true },
+      });
+    }
+    if (!dbUser && payload.email) {
+      dbUser = await prisma.user.findUnique({
+        where: { email: payload.email },
+        select: { id: true, phone: true, role: true, is_active: true, is_banned: true },
+      });
+    }
 
     if (!dbUser || !dbUser.is_active || dbUser.is_banned) return null;
 
@@ -271,6 +288,9 @@ export async function broadcastCallRequest(
           user_location: userLocation,
         });
       }
+
+      // Send push notifications to fallback lawyers
+      await sendPushToLawyers(anyLawyers.map((l) => l.user_id), scenario);
     } else {
       // Broadcast to matched lawyers
       for (const lawyer of matchingLawyers) {
@@ -281,6 +301,9 @@ export async function broadcastCallRequest(
           user_location: userLocation,
         });
       }
+
+      // Send push notifications to matched lawyers
+      await sendPushToLawyers(matchingLawyers.map((l) => l.user_id), scenario);
     }
 
     // Set a timeout: if no lawyer accepts within MATCH_TIMEOUT_SEC, mark as no_lawyers
@@ -325,4 +348,48 @@ export async function broadcastCallRequest(
  */
 export function getOnlineLawyerCount(): number {
   return onlineLawyers.size;
+}
+
+/**
+ * Send push notifications to a list of lawyer user IDs.
+ * Fetches their push tokens from the DB and sends via Expo.
+ */
+async function sendPushToLawyers(lawyerUserIds: string[], scenario: string): Promise<void> {
+  try {
+    if (lawyerUserIds.length === 0) return;
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: lawyerUserIds },
+        push_token: { not: null },
+      },
+      select: { push_token: true },
+    });
+
+    const tokens = users
+      .map((u) => u.push_token)
+      .filter((t): t is string => !!t);
+
+    if (tokens.length === 0) return;
+
+    const scenarioLabel = SCENARIOS.find((s) => s.type === scenario)?.label ?? 'Legal Help';
+
+    await sendPushNotifications(
+      tokens.map((token) => ({
+        to: token,
+        title: '📞 New Call Request',
+        body: `A user needs help with: ${scenarioLabel}`,
+        data: { type: 'incoming_call', scenario },
+        sound: 'default' as const,
+        priority: 'high' as const,
+      }))
+    );
+
+    logger.info(
+      { count: tokens.length, scenario },
+      'Push notifications sent to lawyers'
+    );
+  } catch (err) {
+    logger.error({ err }, 'sendPushToLawyers error');
+  }
 }

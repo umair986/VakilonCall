@@ -225,7 +225,19 @@ export default function LawyerHomeScreen(): React.JSX.Element {
           <StatusPill label="Active call" tone="success" icon="phone-in-talk-outline" />
           <Text style={styles.cardTitle}>{activeCallLabel}</Text>
           <Text style={styles.cardText}>You have accepted this request.</Text>
-          <DangerAction onPress={() => setActiveCall(null)} icon="phone-hangup">
+          <DangerAction
+            onPress={async () => {
+              try {
+                await api.endCall(activeCall.call_session_id);
+              } catch {
+                // Even if API fails, clear local state
+              }
+              const callId = activeCall.call_session_id;
+              setActiveCall(null);
+              router.push({ pathname: '/rate-call', params: { callId } });
+            }}
+            icon="phone-hangup"
+          >
             End Call
           </DangerAction>
         </LegalCard>
@@ -281,6 +293,15 @@ export default function LawyerHomeScreen(): React.JSX.Element {
         </View>
       </LegalCard>
 
+      <PrimaryAction
+        onPress={() => router.push('/lawyer-profile-edit')}
+        icon="pencil-outline"
+        disabled={!isVerified}
+      >
+        Edit Expertise
+      </PrimaryAction>
+
+      <View style={styles.spacer} />
       <PrimaryAction
         onPress={() => router.push('/earnings')}
         icon="bank-transfer"
@@ -388,5 +409,8 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: brandColors.border,
+  },
+  spacer: {
+    height: spacing.sm,
   },
 });

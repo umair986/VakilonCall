@@ -6,16 +6,17 @@ const REFRESH_TOKEN_EXPIRY = '7d';
 
 export interface JwtPayload {
   userId: string;
-  phone: string;
+  phone?: string;
+  email?: string;
   type: 'access' | 'refresh';
 }
 
 /**
  * Sign a short-lived access token for API authentication.
  */
-export function signAccessToken(userId: string, phone: string): string {
+export function signAccessToken(userId: string, phone?: string, email?: string): string {
   return jwt.sign(
-    { userId, phone, type: 'access' } satisfies JwtPayload,
+    { userId, phone, email, type: 'access' } satisfies JwtPayload,
     JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
@@ -24,9 +25,9 @@ export function signAccessToken(userId: string, phone: string): string {
 /**
  * Sign a long-lived refresh token for session renewal.
  */
-export function signRefreshToken(userId: string, phone: string): string {
+export function signRefreshToken(userId: string, phone?: string, email?: string): string {
   return jwt.sign(
-    { userId, phone, type: 'refresh' } satisfies JwtPayload,
+    { userId, phone, email, type: 'refresh' } satisfies JwtPayload,
     JWT_SECRET,
     { expiresIn: REFRESH_TOKEN_EXPIRY }
   );

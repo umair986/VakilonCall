@@ -176,6 +176,8 @@ export const API_PATHS = {
     VERIFY_OTP: `${API_BASE_PATH}/auth/verify-otp`,
     SET_ROLE: `${API_BASE_PATH}/auth/set-role`,
     ME: `${API_BASE_PATH}/auth/me`,
+    GOOGLE_LOGIN: `${API_BASE_PATH}/auth/google`,
+    PUSH_TOKEN: `${API_BASE_PATH}/auth/push-token`,
   },
   USER: {
     PROFILE: `${API_BASE_PATH}/user/profile`,
